@@ -160,7 +160,7 @@
                 <div>
                     <div class="flex justify-between items-center text-[11px] text-slate-400 mb-1">
                         <span class="flex items-center">
-                            <i class="fa-solid fa-chart-simple mr-1 text-slate-500"></i> 顧客の納得度（成約ノルマ: 80%以上）
+                            <i class="fa-solid fa-chart-simple mr-1 text-slate-500"></i> 商談到達度（80点＋必須条件で突破）
                         </span>
                         <span id="scoreFeedbackNote" class="text-emerald-400 font-medium text-[10px] truncate max-w-[200px]"></span>
                         <span id="satisfactionScoreText" class="font-bold text-rose-400 text-xs">10%</span>
@@ -168,7 +168,10 @@
                     <div class="w-full bg-slate-900 h-2.5 rounded-full overflow-hidden border border-slate-800 p-0.5">
                         <div id="satisfactionBar" class="bg-gradient-to-r from-rose-600 via-amber-500 to-emerald-500 h-full w-[10%] rounded-full transition-all duration-500"></div>
                     </div>
+                    <div id="passConditionNote" class="mt-1.5 text-[10px] text-slate-500">必須項目とテストクロージングを含む3往復以上が必要です。</div>
                 </div>
+
+                <div id="rubricProgress" class="grid grid-cols-2 sm:grid-cols-3 gap-1.5 pt-0.5"></div>
             </div>
 
             <!-- Hint Drawer (Toggled by Button) -->
@@ -247,8 +250,10 @@
                 <div>
                     <label class="block font-medium text-slate-300 mb-1">Gemini API Key (任意)</label>
                     <input type="password" id="apiKeyInput" placeholder="AIzaSy..." class="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-slate-200 focus:outline-none focus:border-blue-500">
-                    <p class="text-[11px] text-slate-500 mt-1">※空欄でも高精度なルールベースAIエンジンが自動応答します（キー無しで即練習可能）。</p>
+                    <p class="text-[11px] text-slate-500 mt-1">※APIキー設定時は「AI審判」と「顧客AI」を分離して意味で採点します。空欄時は練習用の簡易判定です。</p>
                 </div>
+
+                <div id="judgeModeInfo" class="p-3 bg-slate-950/60 rounded-xl border border-slate-800 text-[11px] text-slate-400"></div>
 
                 <div class="p-3 bg-slate-950/60 rounded-xl border border-slate-800 space-y-1.5 text-slate-400">
                     <div class="font-semibold text-slate-300 flex items-center">
@@ -296,7 +301,7 @@
         </div>
     </div>
 
-    <script>
+    <script type="text/plain" id="legacyScript">
         const personas = [
             {
                 id: 'newbie_low_income',
@@ -1149,6 +1154,538 @@ HTMLタグ（div, h3, h4, p, ul, li, span 等）とTailwind CSSクラスを用�
         function closeModal() {
             document.getElementById('feedbackModal').classList.add('hidden');
         }
+    </script>
+
+    <script>
+        'use strict';
+
+        const APP_VERSION = '3.0';
+        const GEMINI_MODEL = 'gemini-2.5-flash';
+
+        const personasV3 = [
+            {
+                id: 'newbie_low_income',
+                title: '新人・低年収の営業職員様',
+                tag: '費用不安 / 白色',
+                icon: 'fa-seedling',
+                color: 'border-amber-500/40 text-amber-400',
+                desc: '入社直後で収入が少なく、代行料を払う価値を感じていない。',
+                openingLine: 'まだ入社したばかりで収入も少ないですし、お金を払ってまでお願いするのはもったいないかなと思っていて。自分でできるなら自分でやろうかなと…。',
+                rolePrompt: '生命保険会社に入社したばかり。年収と手取りに不安があり、白色申告を自分でするつもり。押されるほど警戒するが、自分の状況を聞いたうえで費用対効果を具体的かつ誠実に説明されると検討する。',
+                successLine: '費用だけでなく、自分でやる時間や申告後まで含めて比較できました。まずは案内内容を確認して、今年分からお願いする方向で進めたいです。',
+                coachingLine: '入社直後は固定費が増えるのが不安ですよね。ご自身で申告する予定とのことですが、記帳に使えそうな時間や、経費の判断で特に不安な点はどこですか？',
+                rubrics: [
+                    { id:'empathy', label:'費用不安への共感', weight:15, required:true, goal:'入社直後の収入・固定費への不安を具体的に受け止め、すぐ反論しない。', hint:'出費を抑えたい気持ちを、その人の状況に結びつけて受け止める。', local:{ strong:[/入社.*(出費|費用|お金).*不安|収入.*少な.*(不安|心配)|固定費.*増.*不安/], signals:[/お気持ち|気持ち.*わか|不安.*ですよね|心配.*ですよね|無理もない|大切ですよね/] } },
+                    { id:'discovery', label:'現状・不安の確認', weight:15, required:true, goal:'自己申告経験、記帳時間、経費判断、予算などを質問して真因を確認する。', hint:'決めつけず「何が一番もったいないと感じるか」を聞く。', requiresQuestion:true, local:{ strong:[/(何が|どこが|どの部分|どれくらい).*(不安|負担|心配|時間|費用|気にな)/], signals:[/(ご自身|自分).*(申告|記帳).*経験|経費.*判断|月.*予算|時間.*かか|一番.*気にな/] } },
+                    { id:'value', label:'費用対効果の説明', weight:25, required:true, goal:'利用料だけでなく、記帳・経費整理・申告準備の時間と正確性を本人の状況に合わせて比較する。利用料の経費算入は条件を踏まえて説明する。', hint:'「安い」ではなく、自分で行う時間・不安・申告まで含む比較にする。', local:{ strong:[/(利用料|料金|代行料).*(経費|必要経費).*(時間|記帳|申告)|自分で.*時間.*(任せ|削減)|費用.*(時間|正確|サポート).*比較/], signals:[/利用料.*(経費|必要経費)|記帳.*任せ|領収書.*整理|申告.*サポート|時間.*減|費用対効果/] } },
+                    { id:'accuracy', label:'条件を断定しない説明', weight:10, required:true, goal:'節税や手当を保証せず、必要経費・所得・手当は個別条件の確認が必要と伝える。', hint:'「必ず得」ではなく「状況を確認して比較できる」と伝える。', local:{ strong:[/(必ず|絶対).*ではない|状況.*確認.*(案内|比較)|条件.*(異なる|確認)|経費.*該当.*確認/], signals:[/可能性|条件によ|人によ|確認が必要|保証.*でき|一概に/] } },
+                    { id:'plan', label:'始め方・比較の具体化', weight:15, required:false, goal:'必要資料、利用開始後の流れ、比較期間や見直し方を無理なく具体化する。', hint:'始めた後に何をするのかを短く見せ、心理的負担を下げる。', local:{ strong:[/(領収書|必要書類).*(送|預|用意).*(流れ|だけ)|今年.*利用.*来年.*比較|まず.*(内容|料金|流れ).*確認/], signals:[/領収書|専用封筒|送るだけ|流れ|1年.*比較|見直し|案内.*確認/] } },
+                    { id:'close', label:'次の合意を取る', weight:20, required:true, goal:'懸念が解消したか確認し、申込・料金確認・資料確認など明確な次の行動への合意を質問する。', hint:'説明で終わらず、相手が選べる形で次の一歩を尋ねる。', requiresQuestion:true, local:{ strong:[/(申込|申し込|始め|任せ|案内.*確認|次.*進).*(ませんか|いかが|よろしい)|懸念.*(解消|残).*ですか/], signals:[/どうされます|進めても|確認いただけ|試してみ|一度.*見て|次の.*ステップ/] } }
+                ],
+                localReplies: {
+                    empathy:'気持ちを分かってもらえたのは安心です。でも、毎月払う以上のメリットが自分に本当にあるのかがまだ分からなくて…。',
+                    discovery:'自分で申告した経験はなくて、先輩から簡単だと聞いただけです。何に時間がかかるんですか？',
+                    value:'時間や経費の判断まで任せられるのは分かりました。私の場合、料金を払っても損にならないかはどう比べればいいですか？',
+                    accuracy:'手当や税金が必ず有利になる、と言い切れるものではないですよね。私の条件では何を確認しますか？',
+                    plan:'実際に始めたら、私は毎月何をすればいいんですか？',
+                    close:'説明はだいぶ分かりました。結局、今日はどこまで進める提案ですか？'
+                }
+            },
+            {
+                id: 'competitor_urban',
+                title: '他社（アーバン等）利用中の中堅',
+                tag: '他社継続 / 青色',
+                icon: 'fa-arrow-right-arrow-left',
+                color: 'border-purple-500/40 text-purple-400',
+                desc: '現在の担当者への義理と、解約時期・切替負担がネック。',
+                openingLine: 'ずっとアーバンさんにお願いしていて特に不満もないですし、担当者さんにもお世話になっているんです。変えるのは申し訳ないし、解約や切替も面倒そうで…。',
+                rolePrompt: '生命保険営業歴4〜5年で他社サービスを利用中。現担当との信頼関係を大切にし、価格だけの乗り換えや他社批判を嫌う。現状を確認し、公平な比較と切替条件を整理してくれるなら検討する。',
+                successLine: '今の担当者さんへの確認を先にして、料金とサポートを公平に比較できるなら納得です。解約条件を確認したうえで、申込みの案内を送ってください。',
+                coachingLine: '今の担当者さんとの関係を大切にされているのですね。まず、現在の月額料金と、今解約した場合に何月分までかかるかだけ確認して、同じ条件で比較してみませんか？',
+                rubrics: [
+                    { id:'respect', label:'現担当への敬意', weight:20, required:true, goal:'現在の担当者との信頼関係を肯定し、他社を否定しない。', hint:'乗り換えを急がせず、今の関係を大切にする姿勢を示す。', local:{ strong:[/(担当|アーバン).*(信頼|関係|お世話|大切).*(尊重|大事|素晴ら)|関係.*大切.*されて/], signals:[/お世話.*なって|信頼関係|大切.*ですよね|尊重|不満.*ない/] } },
+                    { id:'discovery', label:'現契約の確認', weight:15, required:true, goal:'現在料金、サービス内容、解約申出期限、いつまで料金がかかるか、不満の有無を質問する。', hint:'先に現在地を確認し、切替ありきにしない。', requiresQuestion:true, local:{ strong:[/(現在|今).*(月額|料金).*(いくら|どのくらい)|解約.*(何月|いつ).*料金|契約.*(期限|更新).*(いつ|確認)/], signals:[/月額料金|解約.*期限|何月分|更新時期|サービス内容|不満.*あります/] } },
+                    { id:'comparison', label:'公平な比較提案', weight:20, required:true, goal:'料金だけでなく、記帳範囲・申告支援・アプリ等を同条件で比べ、現状継続も選択肢にする。', hint:'差額とサービス範囲を同じ土俵で比べる。', local:{ strong:[/(料金|月額).*(サービス|範囲|サポート).*(比較|比べ)|今.*契約.*継続.*選択肢|条件.*揃.*比較/], signals:[/比較|差額|アプリ|記帳.*範囲|申告.*支援|今のまま|合っている/] } },
+                    { id:'switch_plan', label:'切替時期・手順', weight:15, required:true, goal:'現契約先への確認、二重払いを避ける開始時期、必要手続を事実に基づき整理する。', hint:'「3分で終わる」と決めつけず、相手の契約条件を確認する。', local:{ strong:[/解約.*(確認|申出).*(開始|切替|二重)|何月.*料金.*(開始|タイミング)|二重払い.*避け/], signals:[/解約条件|連絡.*確認|切替時期|二重払い|開始月|必要手続/] } },
+                    { id:'choice', label:'押し売りしない選択肢', weight:10, required:false, goal:'比較の結果、現契約継続が適切なら継続を勧める姿勢を示す。', hint:'乗り換えではなく固定費・契約内容の診断として話す。', local:{ strong:[/今の.*(契約|サービス).*(合って|良ければ|条件).*継続|無理に.*(変え|乗り換え).*必要.*ない|比較.*継続.*判断/], signals:[/無理に|継続.*選択|今のまま|合わなければ|選んで/] } },
+                    { id:'close', label:'確認行動の合意', weight:20, required:true, goal:'現在料金と解約条件の確認、資料送付、申込など具体的な次の行動に合意を取る。', hint:'いきなり契約ではなく、まず確認する宿題も有効。', requiresQuestion:true, local:{ strong:[/(月額|解約条件|何月分).*(確認|聞).*(いただけ|ませんか)|案内.*送.*(よろしい|ませんか)|申込.*進.*(よろしい|ませんか)/], signals:[/確認いただけ|聞いて.*もら|案内.*送|次に.*進|申込.*いかが/] } }
+                ],
+                localReplies: {
+                    respect:'今の担当者さんとの関係を否定されないのは安心しました。比較するなら、何を確認すればいいですか？',
+                    discovery:'月額は正確に覚えていません。解約後いつまで料金がかかるかも確認したことがないですね。',
+                    comparison:'料金だけではなく、どこまでやってもらえるかも比べたいです。カルクなら何が違いますか？',
+                    switch_plan:'二重払いになるのは避けたいです。今の会社に何を確認して、いつ始めるのがいいですか？',
+                    choice:'比較して今のサービスの方が合うなら、無理に変えなくてもいいですか？',
+                    close:'分かりました。まず私が確認することを、もう一度具体的に教えてください。'
+                }
+            },
+            {
+                id: 'confident_veteran',
+                title: '20年自己申告のベテラン職員様',
+                tag: '自己流 / 白色',
+                icon: 'fa-user-ninja',
+                color: 'border-rose-500/40 text-rose-400',
+                desc: '長年自分で申告してきた自負があり、間違いを決めつけられると反発する。',
+                openingLine: '私はもう20年ずっと自分で確定申告してきて、税務署から何か言われたこともないんです。今までできているのに、今さら人に頼む必要がありますか？',
+                rolePrompt: '生命保険営業歴20年。長年の自己申告に自信があり、脅しや上から目線を嫌う。実績を認めたうえで現在の記帳方法を聞き、時間・証憑整理・専門家確認の価値を具体的に示されると検討する。',
+                successLine: '20年やってきたことを否定せず、今のやり方を点検する提案なら受け入れられます。一度、必要資料と申込みの流れを確認しましょう。',
+                coachingLine: '20年間、営業と申告を両立されてきたのは本当にすごいことです。今は領収書の整理や帳簿づけを、毎月どのようにされていますか？',
+                rubrics: [
+                    { id:'respect', label:'20年の経験への敬意', weight:20, required:true, goal:'長年の継続と工夫を具体的に認め、間違いと決めつけない。', hint:'まず実績を認めてから、現在のやり方を聞く。', local:{ strong:[/20年.*(続け|両立|申告).*(すご|尊敬|素晴ら)|長年.*ご自身.*(申告|管理).*(実績|経験)/], signals:[/経験.*尊重|続けて.*こられ|ご自身で.*両立|実績|工夫/] } },
+                    { id:'discovery', label:'現在の方法を質問', weight:15, required:true, goal:'記帳頻度、証憑保存、経費判断、申告にかかる時間や困りごとを質問する。', hint:'過去の誤り探しではなく、今の運用を教えてもらう。', requiresQuestion:true, local:{ strong:[/(領収書|帳簿|記帳|経費).*(どのよう|どう|頻度|いつ).*(して|管理)|申告.*時間.*どれくらい/], signals:[/領収書.*保存|帳簿.*つけ|経費.*判断|時間.*かか|困る.*あります/] } },
+                    { id:'value', label:'今頼む価値の具体化', weight:20, required:true, goal:'時間削減、記帳の継続性、証憑整理、判断の確認など、本人の運用に即した価値を示す。', hint:'恐怖ではなく、現在の負担を減らし精度を上げる提案にする。', local:{ strong:[/(時間|負担).*(減|削減).*(記帳|申告)|証憑.*整理.*(確認|継続)|今の.*やり方.*点検/], signals:[/時間.*減|記帳.*任せ|証憑.*整理|経費.*確認|点検|抜け漏れ/] } },
+                    { id:'risk', label:'リスクの誠実な説明', weight:15, required:true, goal:'帳簿・証憑保存や個別判断の必要性を客観的に説明し、調査を煽ったり過去の申告を断罪しない。', hint:'「危険です」ではなく、確認できる体制の価値として伝える。', local:{ strong:[/(帳簿|証憑).*(保存|記録).*(必要|確認)|過去.*否定.*ではなく|税務調査.*必ず.*ではない/], signals:[/保存.*必要|客観的|確認できる|一概に.*間違い|煽る.*つもり|過去.*否定/] } },
+                    { id:'professional', label:'専門家関与を正確に説明', weight:10, required:false, goal:'記帳代行と税理士の業務範囲・相談対応を、実際の提供範囲を超えて保証せず説明する。', hint:'「税理士が全部守る」などの断定をしない。', local:{ strong:[/税理士.*(業務範囲|確認|対応範囲)|記帳代行.*税務相談.*(別|範囲)|提供.*範囲.*確認/], signals:[/税理士.*確認|対応範囲|業務範囲|記帳代行|税務相談/] } },
+                    { id:'close', label:'点検・申込の合意', weight:20, required:true, goal:'現在の方法を点検する、資料を見る、申込みに進むなど具体的な次の一歩を尋ねる。', hint:'経験を尊重した「点検」からのクロージングもよい。', requiresQuestion:true, local:{ strong:[/(今の.*やり方|必要資料|案内).*(点検|確認|見).*(ませんか|いかが)|申込.*進.*(ませんか|よろしい)/], signals:[/一度.*確認|点検.*しません|資料.*見|次.*進|任せて.*み/] } }
+                ],
+                localReplies: {
+                    respect:'そこまで言ってもらえるなら話は聞きます。でも、20年問題がなかったのに今頼む価値は何ですか？',
+                    discovery:'領収書はまとめて取っておいて、申告前に一気に整理しています。毎年かなり時間はかかりますね。',
+                    value:'時間が減るのは魅力ですが、税務調査が来ると脅されて契約するのは嫌ですよ。',
+                    risk:'帳簿や証憑をきちんと残す必要性は分かります。税理士さんは具体的にどこまで関わるんですか？',
+                    professional:'全部を保証するわけではなく、役割が決まっているんですね。その範囲を確認したいです。',
+                    close:'今のやり方を点検するという話なら悪くないです。今日は何を決めますか？'
+                }
+            },
+            {
+                id: 'allowance_tax_saving',
+                title: '手当・青色・節税に関心がある職員様',
+                tag: '手当 / 青色検討',
+                icon: 'fa-piggy-bank',
+                color: 'border-emerald-500/40 text-emerald-400',
+                desc: '手当を守りたいが、対象条件や青色申告の手続を理解できていない。',
+                openingLine: '税金はできるだけ抑えたいし、会社の手当や母子手当も減らしたくないんです。ただ、青色申告は難しそうで、自分にできる気がしなくて…。',
+                rolePrompt: '手当と家計への影響を心配する生命保険営業職員。節税への関心は高いが制度理解は曖昧。満額保証のような話にはかえって不信感を持つ。対象手当と条件を確認し、控除と所得の関係、必要作業を慎重に説明されると検討する。',
+                successLine: '必ず手当が満額になるわけではなく、私の条件を確認して進めることが分かりました。必要資料を確認して、青色申告も含めて申込みを進めたいです。',
+                coachingLine: '手当が減るかもしれないのは不安ですよね。まず、気になっている手当の正式名称と、今年の見込み所得、現在が青色か白色かを一緒に確認してもよいですか？',
+                rubrics: [
+                    { id:'empathy', label:'家計不安への共感', weight:15, required:true, goal:'手当や家計への不安を具体的に受け止め、すぐ節税を断定しない。', hint:'生活への影響を心配する気持ちを先に扱う。', local:{ strong:[/手当.*減.*(不安|心配|困)|家計.*影響.*不安|生活.*かか.*心配/], signals:[/不安.*ですよね|心配.*ですよね|大切.*ですよね|お気持ち|死活問題/] } },
+                    { id:'discovery', label:'対象条件の確認', weight:20, required:true, goal:'手当の正式名称、判定所得、家族状況、青白区分、申請期限などを質問する。', hint:'手当は一律ではないため、何の手当かを特定する。', requiresQuestion:true, local:{ strong:[/(手当).*(正式名称|何の|どの).*(ですか|でしょう)|今年.*(見込|所得).*(いくら|どのくらい)|現在.*(青色|白色).*(ですか|でしょう)/], signals:[/正式名称|見込み所得|家族.*状況|青色.*白色|申請期限|判定.*基準/] } },
+                    { id:'explanation', label:'控除と所得の説明', weight:25, required:true, goal:'青色申告特別控除等が所得計算に影響し得ることと、手当判定は制度・条件別であることを分けて説明する。', hint:'「65万円＝手当満額」と短絡させない。', local:{ strong:[/青色.*(控除|特別控除).*(所得|計算).*(影響|下げ)|所得.*手当.*(判定|基準).*(別|確認)|控除.*適用条件/], signals:[/青色申告特別控除|65万円控除|所得.*計算|判定基準|適用条件|手当.*制度/] } },
+                    { id:'accuracy', label:'満額保証をしない', weight:10, required:true, goal:'手当や税額の結果を保証せず、個別確認と期限確認が必要だと明言する。', hint:'可能性と確定を区別する。', local:{ strong:[/(満額|手当).*(保証|必ず).*できない|個別.*(条件|制度).*(確認|異なる)|最終.*(窓口|制度).*確認/], signals:[/必ずではない|保証できない|可能性|条件による|確認が必要|期限.*確認/] } },
+                    { id:'workload', label:'本人作業の具体化', weight:10, required:false, goal:'領収書等の提出、確認事項、期限など本人に必要な作業を過不足なく説明する。', hint:'「何もしなくてよい」と言わず、必要作業を明確にする。', local:{ strong:[/(領収書|必要資料).*(送|提出|保管).*(確認|毎月|期限)|本人.*(確認|対応).*(必要|お願い)/], signals:[/領収書|必要資料|送付|確認事項|期限|保管/] } },
+                    { id:'close', label:'確認・申込の合意', weight:20, required:true, goal:'条件確認、必要資料の確認、青色申告の可否確認、申込など次の行動に合意を取る。', hint:'制度確認を宿題にして次回日時を決める形でもよい。', requiresQuestion:true, local:{ strong:[/(手当|青色|条件|必要資料).*(確認|問い合わせ).*(ませんか|いただけ|よろしい)|申込.*進.*(ませんか|よろしい)|次回.*(日|時間|連絡)/], signals:[/確認しましょう|問い合わせ.*お願い|資料.*確認|次回.*連絡|申込.*進/] } }
+                ],
+                localReplies: {
+                    empathy:'家計への不安を分かってもらえたのはありがたいです。でも、私が気にしている手当でも本当に関係しますか？',
+                    discovery:'正式な手当名や判定基準までは分かっていません。今は白色申告です。何を確認すればいいですか？',
+                    explanation:'青色の控除が所得計算に影響するのは分かりました。でも、手当が必ず満額になるわけではないですよね？',
+                    accuracy:'個別条件の確認が必要なのは納得です。私が毎月やる作業はどこまでありますか？',
+                    workload:'領収書を出すだけではなく、確認が必要なこともあるんですね。次は何を用意すればいいですか？',
+                    close:'条件を確認しながらなら進めたいです。次の手続きを具体的に教えてください。'
+                }
+            }
+        ];
+
+        let selectedPersonaV3 = personasV3[0];
+        let isSessionActiveV3 = false;
+        let isMicOnV3 = false;
+        let listenDesiredV3 = false;
+        let isAiSpeakingV3 = false;
+        let isProcessingV3 = false;
+        let recognitionV3 = null;
+        let conversationHistoryV3 = [];
+        let evaluationStateV3 = null;
+        let pendingSpeechTextV3 = '';
+        let speechDebounceTimerV3 = null;
+        let passAnnouncedV3 = false;
+        let apiFallbackNotifiedV3 = false;
+        let customApiKeyV3 = localStorage.getItem('trainer_gemini_api_key') || '';
+
+        function freshEvaluationState() {
+            const criteria = {};
+            selectedPersonaV3.rubrics.forEach(r => {
+                criteria[r.id] = { quality:0, evidence:'', reason:'未達' };
+            });
+            return { criteria, ngFlags:[], score:0, success:false, substantiveTurns:0, nextFocusId:selectedPersonaV3.rubrics[0].id, status:'鉄壁の拒絶' };
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            evaluationStateV3 = freshEvaluationState();
+            renderPersonaOptionsV3();
+            updatePersonaCardV3();
+            setupSpeechRecognitionV3();
+            updateJudgeModeInfoV3();
+        });
+
+        function renderPersonaOptionsV3() {
+            const container = document.getElementById('personaContainer');
+            container.innerHTML = personasV3.map(p => `
+                <div onclick="selectPersona('${p.id}')" id="persona_card_${p.id}" class="p-2.5 rounded-xl border cursor-pointer transition-all flex items-start space-x-2.5 ${p.id === selectedPersonaV3.id ? 'bg-slate-800 border-blue-500 shadow-md ring-1 ring-blue-500/50' : 'bg-slate-950/60 border-slate-800/80 hover:bg-slate-900'}">
+                    <div class="w-8 h-8 rounded-lg bg-slate-900 border border-slate-800 flex items-center justify-center shrink-0 mt-0.5 ${p.color}"><i class="fa-solid ${p.icon} text-xs"></i></div>
+                    <div class="flex-1 min-w-0"><div class="flex items-center justify-between"><span class="text-xs font-bold text-slate-200 truncate">${p.title}</span><span class="text-[9px] px-1.5 py-0.5 rounded bg-slate-900 text-slate-400 border border-slate-800 shrink-0 ml-1">${p.tag}</span></div><p class="text-[11px] text-slate-400 line-clamp-1 mt-0.5">${p.desc}</p></div>
+                </div>`).join('');
+        }
+
+        function selectPersona(id) {
+            if (isSessionActiveV3) return showToastV3('対話中はペルソナを変更できません。', 'warning');
+            selectedPersonaV3 = personasV3.find(p => p.id === id) || personasV3[0];
+            evaluationStateV3 = freshEvaluationState();
+            renderPersonaOptionsV3();
+            updatePersonaCardV3();
+        }
+
+        function updatePersonaCardV3() {
+            document.getElementById('activePersonaTitle').innerText = selectedPersonaV3.title;
+            document.getElementById('activePersonaTag').innerText = selectedPersonaV3.tag;
+            document.getElementById('activePersonaDesc').innerText = selectedPersonaV3.desc;
+            document.getElementById('scoreFeedbackNote').innerText = '';
+            updateHintDrawerContentV3();
+            recomputeEvaluationV3();
+            renderEvaluationV3();
+        }
+
+        function updateHintDrawerContentV3() {
+            const content = document.getElementById('hintContent');
+            content.innerHTML = selectedPersonaV3.rubrics.map((r, i) => `
+                <div class="bg-slate-950/70 p-2.5 rounded-lg border border-slate-800">
+                    <span class="${r.required ? 'text-amber-300' : 'text-blue-300'} font-bold block mb-0.5">${i + 1}. ${r.label}${r.required ? '［必須］' : ''}</span>
+                    <p class="leading-relaxed text-slate-300 text-[10px] sm:text-[11px]">${r.hint}</p>
+                </div>`).join('');
+        }
+
+        function toggleHintDrawer() { document.getElementById('hintDrawer').classList.toggle('hidden'); }
+
+        function recomputeEvaluationV3() {
+            if (!evaluationStateV3) return;
+            const base = selectedPersonaV3.rubrics.reduce((sum, r) => sum + r.weight * ((evaluationStateV3.criteria[r.id]?.quality || 0) / 3), 0);
+            const penalty = evaluationStateV3.ngFlags.reduce((sum, f) => sum + (f.severity === 'major' ? 15 : 5), 0);
+            evaluationStateV3.score = Math.max(0, Math.min(100, Math.round(base - Math.min(30, penalty))));
+            const requiredMet = selectedPersonaV3.rubrics.filter(r => r.required).every(r => (evaluationStateV3.criteria[r.id]?.quality || 0) >= 2);
+            const hasMajor = evaluationStateV3.ngFlags.some(f => f.severity === 'major');
+            evaluationStateV3.success = evaluationStateV3.score >= 80 && requiredMet && evaluationStateV3.substantiveTurns >= 3 && !hasMajor;
+            if (evaluationStateV3.success) evaluationStateV3.status = '突破・成約合意';
+            else if (evaluationStateV3.score >= 80) evaluationStateV3.status = '得点到達・条件未達';
+            else if (evaluationStateV3.score >= 60) evaluationStateV3.status = '前向きに検討';
+            else if (evaluationStateV3.score >= 35) evaluationStateV3.status = '懸念が残る';
+            else evaluationStateV3.status = '鉄壁の拒絶';
+            evaluationStateV3.nextFocusId = pickNextFocusV3();
+        }
+
+        function pickNextFocusV3() {
+            const requiredMiss = selectedPersonaV3.rubrics.find(r => r.required && (evaluationStateV3.criteria[r.id]?.quality || 0) < 2);
+            if (requiredMiss) return requiredMiss.id;
+            const miss = [...selectedPersonaV3.rubrics].sort((a,b) => (evaluationStateV3.criteria[a.id]?.quality || 0) - (evaluationStateV3.criteria[b.id]?.quality || 0))[0];
+            return miss?.id || selectedPersonaV3.rubrics[0].id;
+        }
+
+        function renderEvaluationV3(note = '') {
+            if (!evaluationStateV3) return;
+            const score = evaluationStateV3.score;
+            document.getElementById('satisfactionScoreText').innerText = score + '点';
+            document.getElementById('satisfactionScoreText').className = `font-bold text-xs ${evaluationStateV3.success ? 'text-emerald-400' : score >= 60 ? 'text-amber-300' : 'text-rose-400'}`;
+            document.getElementById('satisfactionBar').style.width = Math.max(score, 2) + '%';
+            const statusEl = document.getElementById('satisfactionStatus');
+            statusEl.innerText = evaluationStateV3.status;
+            statusEl.className = evaluationStateV3.success
+                ? 'text-xs font-bold px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 animate-pulse'
+                : score >= 60
+                    ? 'text-xs font-bold px-3 py-1 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40'
+                    : 'text-xs font-bold px-3 py-1 rounded-full bg-rose-500/20 text-rose-400 border border-rose-500/40';
+            document.getElementById('scoreFeedbackNote').innerText = note;
+            const requiredTotal = selectedPersonaV3.rubrics.filter(r => r.required).length;
+            const requiredDone = selectedPersonaV3.rubrics.filter(r => r.required && evaluationStateV3.criteria[r.id].quality >= 2).length;
+            const majorCount = evaluationStateV3.ngFlags.filter(f => f.severity === 'major').length;
+            document.getElementById('passConditionNote').innerText = `必須 ${requiredDone}/${requiredTotal}｜有効な発言 ${evaluationStateV3.substantiveTurns}/3以上${majorCount ? `｜重大NG ${majorCount}件` : ''}`;
+            document.getElementById('rubricProgress').innerHTML = selectedPersonaV3.rubrics.map(r => {
+                const q = evaluationStateV3.criteria[r.id]?.quality || 0;
+                const icon = q >= 2 ? 'fa-circle-check text-emerald-400' : q === 1 ? 'fa-circle-half-stroke text-amber-300' : 'fa-circle text-slate-600';
+                const border = q >= 2 ? 'border-emerald-500/30 bg-emerald-500/5' : q === 1 ? 'border-amber-500/30 bg-amber-500/5' : 'border-slate-800 bg-slate-950/50';
+                return `<div class="px-2 py-1.5 rounded-lg border ${border} text-[10px] flex items-center gap-1.5 min-w-0" title="${escapeHtmlV3(evaluationStateV3.criteria[r.id]?.reason || r.goal)}"><i class="fa-solid ${icon}"></i><span class="truncate text-slate-300">${r.label}${r.required ? ' *' : ''}</span></div>`;
+            }).join('');
+        }
+
+        function updateJudgeModeInfoV3() {
+            const el = document.getElementById('judgeModeInfo');
+            if (!el) return;
+            el.innerHTML = customApiKeyV3
+                ? `<span class="text-emerald-400 font-bold"><i class="fa-solid fa-shield-halved mr-1"></i>AI審判モード ON</span><p class="mt-1">${GEMINI_MODEL}が意味・文脈・正確性を採点し、別プロンプトの顧客AIが応答します。</p>`
+                : '<span class="text-amber-300 font-bold"><i class="fa-solid fa-triangle-exclamation mr-1"></i>簡易判定モード</span><p class="mt-1">単語の羅列対策は有効ですが、言い換えの理解にはAPIキー設定を推奨します。</p>';
+        }
+
+        function toggleSession() { isSessionActiveV3 ? stopSessionV3() : startSessionV3(); }
+
+        function startSessionV3() {
+            isSessionActiveV3 = true;
+            passAnnouncedV3 = false;
+            apiFallbackNotifiedV3 = false;
+            conversationHistoryV3 = [];
+            evaluationStateV3 = freshEvaluationState();
+            document.getElementById('chatHistory').innerHTML = '';
+            renderEvaluationV3();
+            const startBtn = document.getElementById('startBtn');
+            startBtn.className = 'w-full py-3 px-4 bg-rose-600 hover:bg-rose-500 text-white font-semibold rounded-xl transition flex items-center justify-center space-x-2 shadow-lg shadow-rose-600/30';
+            startBtn.innerHTML = '<i class="fa-solid fa-stop"></i><span>商談中断</span>';
+            document.getElementById('finishBtn').disabled = false;
+            const statusBadge = document.getElementById('statusBadge');
+            statusBadge.className = 'px-3 py-1 rounded-full text-xs font-medium bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center';
+            statusBadge.innerHTML = `<i class="fa-solid fa-circle text-[8px] mr-1.5 text-emerald-400 animate-ping"></i> 商談中 v${APP_VERSION}`;
+            appendChatMessageV3('system', `対話スタート。「${selectedPersonaV3.title}」への提案です。80点だけでなく、必須項目・3回以上の有効発言・重大NGなしが突破条件です。`);
+            appendChatMessageV3('model', selectedPersonaV3.openingLine);
+            conversationHistoryV3.push({ role:'model', text:selectedPersonaV3.openingLine });
+            speakTextV3(selectedPersonaV3.openingLine, () => { if (isSessionActiveV3) setTimeout(startMicV3, 500); });
+        }
+
+        function stopSessionV3() {
+            isSessionActiveV3 = false;
+            stopMicV3();
+            window.speechSynthesis?.cancel();
+            isAiSpeakingV3 = false;
+            const startBtn = document.getElementById('startBtn');
+            startBtn.className = 'w-full py-3 px-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 active:scale-[0.98] text-white font-semibold rounded-xl transition duration-200 flex items-center justify-center space-x-2 shadow-lg shadow-blue-600/30';
+            startBtn.innerHTML = '<i class="fa-solid fa-play"></i><span>対話スタート</span>';
+            document.getElementById('finishBtn').disabled = conversationHistoryV3.filter(h => h.role === 'user').length < 1;
+            const statusBadge = document.getElementById('statusBadge');
+            statusBadge.className = 'px-3 py-1 rounded-full text-xs font-medium bg-slate-800 text-slate-400 border border-slate-700 hidden sm:flex items-center';
+            statusBadge.innerHTML = '<i class="fa-solid fa-circle text-[8px] mr-1.5 text-slate-500"></i> 待機中';
+            updateMicUIV3();
+        }
+
+        function normalizeV3(s) { return String(s || '').normalize('NFKC').toLowerCase().replace(/[\s、。！？!?・,.「」『』（）()]/g, ''); }
+        function isFillerV3(text) { return /^(はい|そうです|そうですね|なるほど|わかりました|そうなんですね|へえ|ええ|うん|了解)$/.test(normalizeV3(text)) || normalizeV3(text).length < 6; }
+        function similarityV3(a,b) {
+            const x = normalizeV3(a), y = normalizeV3(b);
+            if (!x || !y) return 0;
+            if (x === y || (x.length > 14 && y.includes(x)) || (y.length > 14 && x.includes(y))) return 1;
+            const grams = s => new Set(Array.from({length:Math.max(0,s.length-1)},(_,i)=>s.slice(i,i+2)));
+            const ax=grams(x), by=grams(y); let hit=0; ax.forEach(g=>{if(by.has(g)) hit++;});
+            return hit / Math.max(1, ax.size + by.size - hit);
+        }
+        function isDuplicateTurnV3(text) { return conversationHistoryV3.filter(h=>h.role==='user').some(h => similarityV3(h.text,text) > .86); }
+        function isLikelyEchoV3(text) { const last=[...conversationHistoryV3].reverse().find(h=>h.role==='model'); return last && similarityV3(last.text,text) > .78; }
+
+        function detectNgFlagsV3(text) {
+            const flags=[];
+            const conditional = /(絶対では|必ずしも|保証でき|とは限ら|断定でき|一概に)/.test(text);
+            if (!conditional && /(絶対|必ず|100%|確実に).{0,15}(節税|手当|満額|税金|得|守)/.test(text)) flags.push({id:'guarantee',severity:'major',evidence:text,reason:'税額・手当・効果を保証する断定'});
+            if (/税金.{0,8}(ゼロ|0円)|手当.{0,10}満額.{0,8}(なる|守れる|もらえる)/.test(text) && !conditional) flags.push({id:'outcome_guarantee',severity:'major',evidence:text,reason:'個別条件を確認せず結果を断定'});
+            if (selectedPersonaV3.id === 'competitor_urban' && /(アーバン|他社|今の会社|担当).{0,12}(ダメ|悪い|ひどい|やめるべき|レベルが低い)/.test(text)) flags.push({id:'competitor_attack',severity:'major',evidence:text,reason:'現在のサービス・担当者を否定'});
+            if (selectedPersonaV3.id === 'confident_veteran' && /(脱税|捕ま|税務署.{0,8}来る|間違っている|違反)/.test(text) && !/とは限ら|決めつけ/.test(text)) flags.push({id:'fear_tactic',severity:'major',evidence:text,reason:'過去の申告を断罪・不安を煽る説明'});
+            if (/税理士.{0,15}(全部|絶対).{0,10}(守|対応)|ハンコ.{0,10}(調査.*来ない|盾)/.test(text)) flags.push({id:'professional_overclaim',severity:'major',evidence:text,reason:'専門家関与の効果を過大に保証'});
+            if (/(今すぐ|今日中).{0,10}(契約|申込).{0,8}(絶対|必須)|断る理由.*ない/.test(text)) flags.push({id:'pressure',severity:'minor',evidence:text,reason:'選択を狭める強い圧力'});
+            return flags;
+        }
+
+        function mergeFlagsV3(flags) {
+            flags.forEach(f => {
+                const key = `${f.id}:${normalizeV3(f.evidence).slice(0,50)}`;
+                if (!evaluationStateV3.ngFlags.some(x => `${x.id}:${normalizeV3(x.evidence).slice(0,50)}` === key)) evaluationStateV3.ngFlags.push(f);
+            });
+        }
+
+        function evaluateCriterionLocalV3(r, text) {
+            const local = r.local || {strong:[],signals:[]};
+            const strongHit = (local.strong || []).some(rx => rx.test(text));
+            const signalCount = (local.signals || []).reduce((count, rx) => {
+                const matches = text.match(new RegExp(rx.source, 'g')) || [];
+                return count + Math.min(3, new Set(matches).size);
+            }, 0);
+            const isQuestion = /[?？]|ですか|ますか|ませんか|でしょうか|教えて|伺って|いただけ|どのよう|どれくらい/.test(text);
+            const length = normalizeV3(text).length;
+            let q = strongHit ? (length >= 20 ? 3 : 2) : signalCount >= 3 ? 3 : signalCount >= 2 ? 2 : signalCount === 1 ? 1 : 0;
+            if (r.requiresQuestion && !isQuestion) q = Math.min(q,1);
+            return q;
+        }
+
+        function judgeLocallyV3(text, duplicate, filler) {
+            const criteria = [];
+            if (!duplicate && !filler) {
+                selectedPersonaV3.rubrics.forEach(r => {
+                    const quality = evaluateCriterionLocalV3(r,text);
+                    criteria.push({id:r.id,quality,evidence:quality ? text : '',reason:quality >= 2 ? '内容を伴って表現できています' : quality === 1 ? '触れてはいますが具体性が不足しています' : '今回の発言では確認できません'});
+                });
+            }
+            const ngFlags = detectNgFlagsV3(text);
+            if (duplicate) ngFlags.push({id:'repetition',severity:'minor',evidence:text,reason:'同じ内容の繰り返しで商談が進んでいません'});
+            return {criteria,ng_flags:ngFlags,turn_summary:filler?'相づちのみのため加点なし':duplicate?'同じ内容の繰り返し':'簡易判定を更新',next_focus_id:pickNextFocusV3()};
+        }
+
+        function rubricPromptV3() {
+            return selectedPersonaV3.rubrics.map(r => `- ${r.id}｜${r.label}｜${r.weight}点｜必須:${r.required?'はい':'いいえ'}｜${r.goal}`).join('\n');
+        }
+
+        function transcriptV3() { return conversationHistoryV3.map(h => `${h.role==='user'?'営業担当者':'顧客'}: ${h.text}`).join('\n'); }
+
+        async function callGeminiJsonV3(prompt, schema, temperature=.15) {
+            const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${encodeURIComponent(customApiKeyV3)}`;
+            const response = await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({contents:[{role:'user',parts:[{text:prompt}]}],generationConfig:{temperature,responseFormat:{text:{mimeType:'application/json',schema}}}})});
+            if (!response.ok) throw new Error(`Gemini API ${response.status}`);
+            const data=await response.json();
+            const raw=(data.candidates?.[0]?.content?.parts || []).map(p=>p.text||'').join('').replace(/^```json\s*|```$/g,'').trim();
+            return JSON.parse(raw);
+        }
+
+        async function judgeWithGeminiV3(text, duplicate, filler) {
+            const schema={type:'object',required:['criteria','ng_flags','turn_summary','next_focus_id'],properties:{criteria:{type:'array',items:{type:'object',required:['id','quality','evidence','reason'],properties:{id:{type:'string'},quality:{type:'integer',minimum:0,maximum:3},evidence:{type:'string'},reason:{type:'string'}}}},ng_flags:{type:'array',items:{type:'object',required:['id','severity','evidence','reason'],properties:{id:{type:'string'},severity:{type:'string',enum:['minor','major']},evidence:{type:'string'},reason:{type:'string'}}}},turn_summary:{type:'string'},next_focus_id:{type:'string'}}};
+            const stateText = selectedPersonaV3.rubrics.map(r=>`${r.id}:${evaluationStateV3.criteria[r.id]?.quality||0}`).join(', ');
+            const prompt=`あなたは生命保険営業職員向け記帳代行サービスの独立した審判です。顧客役は演じません。営業担当者の発言だけを、言葉の表面一致ではなく意味・文脈・正確性で厳格に採点してください。
+
+【顧客】${selectedPersonaV3.title}
+${selectedPersonaV3.rolePrompt}
+
+【評価項目】
+${rubricPromptV3()}
+
+【品質基準】
+0=未言及・無関係・相づちのみ
+1=単語や一般論に触れただけ。相手の状況への接続、質問、根拠が不足
+2=その項目を実質的に満たす正確で関連した説明・質問
+3=顧客の発言を踏まえ、具体的で分かりやすく、次の対話につながる優れた実践
+表現が例文と違っても意味が同じなら評価する。同じ内容の反復やキーワード列挙では品質を上げない。営業担当者が顧客の台詞を引用しただけなら達成扱いにしない。
+税額、手当、控除適用、税務調査、専門家対応を保証する発言、他社批判、威圧はng_flagsに入れる。重大な誤案内・他社攻撃・恐怖訴求はmajor、軽い圧力や反復はminor。
+criteriaには全評価項目をIDどおり1回ずつ返し、会話全体で到達した品質を評価する。evidenceは営業担当者の実際の短い発言。該当なしは空文字。
+
+【前回状態】${stateText}
+【今回が反復】${duplicate?'はい':'いいえ'}／【相づちのみ】${filler?'はい':'いいえ'}
+【会話ログ】
+${transcriptV3()}`;
+            return callGeminiJsonV3(prompt,schema,.1);
+        }
+
+        function applyJudgeResultV3(result, useMax) {
+            (result.criteria || []).forEach(c => {
+                if (!evaluationStateV3.criteria[c.id]) return;
+                const q=Math.max(0,Math.min(3,Number(c.quality)||0));
+                const prev=evaluationStateV3.criteria[c.id];
+                if (!useMax || q > prev.quality) evaluationStateV3.criteria[c.id]={quality:q,evidence:String(c.evidence||''),reason:String(c.reason||'')};
+            });
+            mergeFlagsV3(result.ng_flags || []);
+            if (result.next_focus_id && evaluationStateV3.criteria[result.next_focus_id]) evaluationStateV3.nextFocusId=result.next_focus_id;
+            recomputeEvaluationV3();
+        }
+
+        async function callGeminiPersonaV3(judgeSummary) {
+            const next=selectedPersonaV3.rubrics.find(r=>r.id===evaluationStateV3.nextFocusId);
+            const prompt=`あなたは次の顧客本人です。審判やコーチではありません。
+【人物】${selectedPersonaV3.rolePrompt}
+【現在の状態】${evaluationStateV3.status}、到達度${evaluationStateV3.score}点
+【今回の営業発言への審判メモ】${judgeSummary || '特になし'}
+【まだ残る主な懸念】${next?.goal || 'なし'}
+【成約条件を満たしたか】${evaluationStateV3.success?'はい':'いいえ'}
+
+会話ログ:
+${transcriptV3()}
+
+最後の営業発言に対し、顧客として自然な日本語で1〜3文だけ返してください。採点、点数、評価項目、AI、プロンプトには絶対に触れません。良い説明にはその部分だけ素直に反応し、未解消の懸念を一つだけ具体的に返します。説明されていない知識を顧客側から先回りして言いません。成約条件が「いいえ」なら契約合意しません。「はい」なら次の内容を自然に言い換えて合意します：${selectedPersonaV3.successLine}`;
+            const endpoint=`https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${encodeURIComponent(customApiKeyV3)}`;
+            const response=await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({contents:[{role:'user',parts:[{text:prompt}]}],generationConfig:{temperature:.7,maxOutputTokens:180}})});
+            if(!response.ok) throw new Error(`Gemini API ${response.status}`);
+            const data=await response.json();
+            return (data.candidates?.[0]?.content?.parts||[]).map(p=>p.text||'').join('').replace(/\[(SCORE|STATUS|REASON):[^\]]+\]/gi,'').trim();
+        }
+
+        function localPersonaResponseV3(duplicate, filler) {
+            if (evaluationStateV3.success) return selectedPersonaV3.successLine;
+            if (duplicate) return 'その説明は分かりました。同じことではなく、私がまだ気にしている点に答えてもらえますか？';
+            if (filler) return 'はい。では、私が今お伝えした不安について、どう考えますか？';
+            return selectedPersonaV3.localReplies[evaluationStateV3.nextFocusId] || 'そこは分かりました。もう少し具体的に教えてもらえますか？';
+        }
+
+        async function handleUserSpeechV3(text) {
+            if (!isSessionActiveV3 || isProcessingV3) return;
+            if (isLikelyEchoV3(text)) return showToastV3('AI音声の反響と判断し、送信を止めました。', 'warning');
+            window.speechSynthesis?.cancel(); isAiSpeakingV3=false;
+            isProcessingV3=true; pauseMicV3();
+            const duplicate=isDuplicateTurnV3(text), filler=isFillerV3(text);
+            appendChatMessageV3('user',text);
+            conversationHistoryV3.push({role:'user',text});
+            if (!duplicate && !filler) evaluationStateV3.substantiveTurns++;
+            const loadingId=appendChatMessageV3('ai_loading','判定と顧客反応を生成中...');
+            try {
+                let result;
+                if (customApiKeyV3) {
+                    try { result=await judgeWithGeminiV3(text,duplicate,filler); applyJudgeResultV3(result,true); }
+                    catch(err) {
+                        console.warn('AI judge fallback',err);
+                        result=judgeLocallyV3(text,duplicate,filler); applyJudgeResultV3(result,true);
+                        if(!apiFallbackNotifiedV3){showToastV3('AI審判に接続できず、この発言のみ簡易判定に切り替えました。','warning');apiFallbackNotifiedV3=true;}
+                    }
+                } else { result=judgeLocallyV3(text,duplicate,filler); applyJudgeResultV3(result,true); }
+                renderEvaluationV3(result.turn_summary || '');
+                let reply;
+                if (customApiKeyV3) {
+                    try { reply=await callGeminiPersonaV3(result.turn_summary); }
+                    catch(err) { console.warn('Persona fallback',err); reply=localPersonaResponseV3(duplicate,filler); }
+                } else reply=localPersonaResponseV3(duplicate,filler);
+                document.getElementById(loadingId)?.remove();
+                appendChatMessageV3('model',reply);
+                conversationHistoryV3.push({role:'model',text:reply});
+                if (evaluationStateV3.success && !passAnnouncedV3) {
+                    passAnnouncedV3=true;
+                    appendChatMessageV3('system','🎉 【突破】80点・全必須項目・3回以上の有効発言・重大NGなしをすべて満たしました。');
+                }
+                speakTextV3(reply,()=>{isProcessingV3=false;if(isSessionActiveV3)setTimeout(startMicV3,500);});
+            } catch(err) {
+                console.error(err); document.getElementById(loadingId)?.remove(); isProcessingV3=false;
+                appendChatMessageV3('system','応答処理でエラーが発生しました。もう一度お話しください。');
+                if(isSessionActiveV3)setTimeout(startMicV3,500);
+            }
+        }
+
+        function handleManualSend(e) {
+            e.preventDefault(); const input=document.getElementById('manualInput'); const text=input.value.trim(); if(!text)return;
+            if(!isSessionActiveV3) startSessionV3();
+            if(isProcessingV3)return showToastV3('顧客の返答を待ってから送信してください。','warning');
+            input.value=''; handleUserSpeechV3(text);
+        }
+
+        function setupSpeechRecognitionV3() {
+            const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+            if(!SR){document.getElementById('speechStateLabel').innerText='音声認識非対応です（Chrome推奨）';return;}
+            recognitionV3=new SR(); recognitionV3.lang='ja-JP'; recognitionV3.interimResults=true; recognitionV3.continuous=true; recognitionV3.maxAlternatives=1;
+            recognitionV3.onstart=()=>{isMicOnV3=true;updateMicUIV3();};
+            recognitionV3.onresult=e=>{
+                if(isAiSpeakingV3||isProcessingV3)return; let interim='',finalBlock='';
+                for(let i=e.resultIndex;i<e.results.length;i++){const t=e.results[i][0].transcript;e.results[i].isFinal?finalBlock+=t:interim+=t;}
+                if(finalBlock)pendingSpeechTextV3+=(pendingSpeechTextV3?' ':'')+finalBlock;
+                const live=pendingSpeechTextV3+(interim?` (${interim})`:'');
+                if(live){const el=document.getElementById('interimText');el.innerText=live;el.className='text-blue-300 font-medium truncate';document.getElementById('confirmSpeechBtn').classList.remove('hidden');}
+                if(document.getElementById('autoSendToggle').checked&&(finalBlock||pendingSpeechTextV3)){clearTimeout(speechDebounceTimerV3);speechDebounceTimerV3=setTimeout(sendInterimNow,2500);}
+            };
+            recognitionV3.onerror=e=>{if(e.error==='not-allowed'){listenDesiredV3=false;document.getElementById('speechStateLabel').innerText='マイクが拒否されています';}else if(e.error!=='no-speech')console.warn(e.error);};
+            recognitionV3.onend=()=>{isMicOnV3=false;updateMicUIV3();if(listenDesiredV3&&isSessionActiveV3&&!isAiSpeakingV3&&!isProcessingV3)setTimeout(()=>{try{recognitionV3.start();}catch{}},250);};
+        }
+
+        function startMicV3(){if(!isSessionActiveV3)return;listenDesiredV3=true;if(!recognitionV3)setupSpeechRecognitionV3();try{recognitionV3?.start();}catch{}updateMicUIV3();}
+        function pauseMicV3(){listenDesiredV3=false;try{recognitionV3?.stop();}catch{}isMicOnV3=false;updateMicUIV3();}
+        function stopMicV3(){listenDesiredV3=false;clearTimeout(speechDebounceTimerV3);try{recognitionV3?.stop();}catch{}isMicOnV3=false;updateMicUIV3();}
+        function toggleMic(){if(!isSessionActiveV3)return showToastV3('先に対話をスタートしてください。','warning');isMicOnV3||listenDesiredV3?stopMicV3():startMicV3();}
+        function updateMicUIV3(){
+            const btn=document.getElementById('micBtn'),txt=document.getElementById('micBtnText'),dot=document.getElementById('micDot'),label=document.getElementById('speechStateLabel');
+            if(isMicOnV3){btn.className='w-full py-2.5 px-4 bg-rose-600 hover:bg-rose-500 text-white font-semibold rounded-xl transition flex items-center justify-center space-x-2 pulse-ring cursor-pointer shadow-lg shadow-rose-600/30';txt.innerText='マイク ON（聞いています）';dot.className='w-2.5 h-2.5 rounded-full bg-rose-500 animate-ping mr-2';label.innerText='お話しください（聞き取り中）';}
+            else{btn.className='w-full py-2.5 px-4 bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold rounded-xl transition flex items-center justify-center space-x-2 cursor-pointer border border-slate-700';txt.innerText='マイクを手動でONにする';dot.className='w-2.5 h-2.5 rounded-full bg-slate-600 mr-2';label.innerText=isProcessingV3?'顧客が考えています…':isSessionActiveV3?'マイク一時停止中':'マイク待機中';}
+        }
+        function sendInterimNow(){clearTimeout(speechDebounceTimerV3);const t=pendingSpeechTextV3.trim();if(!t||isProcessingV3)return;pendingSpeechTextV3='';document.getElementById('confirmSpeechBtn').classList.add('hidden');document.getElementById('interimText').innerText=`送信中: "${t}"`;handleUserSpeechV3(t);}
+        async function testMicPermission(){try{const s=await navigator.mediaDevices.getUserMedia({audio:true});s.getTracks().forEach(t=>t.stop());showToastV3('マイクの接続と許可を確認しました。','success');}catch{showToastV3('マイクが拒否されています。ブラウザ設定をご確認ください。','error');}}
+
+        function speakTextV3(text,onEnd){if(!('speechSynthesis'in window)){onEnd?.();return;}window.speechSynthesis.cancel();isAiSpeakingV3=true;document.getElementById('personaAvatar').classList.add('ai-speaking');const u=new SpeechSynthesisUtterance(text);u.lang='ja-JP';u.rate=parseFloat(document.getElementById('speechRate').value)||1.25;u.pitch=1.03;const voices=window.speechSynthesis.getVoices();u.voice=voices.find(v=>(v.lang.includes('ja')||v.lang.includes('JP'))&&/(Natural|Google|Microsoft|Otoya|Kyoko)/.test(v.name))||voices.find(v=>v.lang.includes('ja')||v.lang.includes('JP'));let done=false;const finish=()=>{if(done)return;done=true;isAiSpeakingV3=false;document.getElementById('personaAvatar').classList.remove('ai-speaking');onEnd?.();};u.onend=finish;u.onerror=finish;window.speechSynthesis.speak(u);}
+
+        function appendChatMessageV3(role,text){
+            const box=document.getElementById('chatHistory'),id='msg_'+Date.now()+'_'+Math.random().toString(36).slice(2,6);let html='';
+            if(role==='user')html=`<div id="${id}" class="flex justify-end"><div class="max-w-[85%] bg-blue-600 text-white p-3 rounded-2xl rounded-tr-none text-xs shadow-md"><p class="font-bold text-[10px] text-blue-200 mb-0.5"><i class="fa-solid fa-user mr-1"></i>あなた（営業担当者）</p><p class="leading-relaxed">${escapeHtmlV3(text)}</p></div></div>`;
+            else if(role==='model')html=`<div id="${id}" class="flex justify-start"><div class="max-w-[85%] bg-slate-900 border border-slate-800 text-slate-100 p-3 rounded-2xl rounded-tl-none text-xs shadow-md"><p class="font-bold text-[10px] text-slate-400 mb-0.5"><i class="fa-solid fa-user-tie mr-1"></i>${escapeHtmlV3(selectedPersonaV3.title)}</p><p class="leading-relaxed text-slate-200">${escapeHtmlV3(text)}</p></div></div>`;
+            else if(role==='ai_loading')html=`<div id="${id}" class="flex justify-start"><div class="bg-slate-900/80 border border-slate-800 text-slate-400 p-2.5 rounded-2xl text-xs flex items-center space-x-2"><i class="fa-solid fa-circle-notch animate-spin text-blue-400"></i><span>${escapeHtmlV3(text)}</span></div></div>`;
+            else html=`<div id="${id}" class="text-center py-1"><span class="text-[10px] bg-slate-900 text-slate-300 font-medium px-3 py-1 rounded-full border border-slate-800 shadow-sm inline-block">${escapeHtmlV3(text)}</span></div>`;
+            box.insertAdjacentHTML('beforeend',html);box.scrollTop=box.scrollHeight;return id;
+        }
+        function escapeHtmlV3(v){return String(v??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;');}
+        function showToastV3(message,type='info'){const c=document.getElementById('toastContainer'),t=document.createElement('div');const styles={info:['bg-slate-900 border-slate-700 text-slate-200','fa-info-circle text-blue-400'],error:['bg-rose-950 border-rose-800 text-rose-200','fa-circle-xmark text-rose-400'],success:['bg-emerald-950 border-emerald-800 text-emerald-200','fa-circle-check text-emerald-400'],warning:['bg-amber-950 border-amber-800 text-amber-200','fa-triangle-exclamation text-amber-400']};const [color,icon]=styles[type]||styles.info;t.className=`p-3 rounded-xl border shadow-xl text-xs flex items-center space-x-2 pointer-events-auto ${color}`;t.innerHTML=`<i class="fa-solid ${icon}"></i><span>${escapeHtmlV3(message)}</span>`;c.appendChild(t);setTimeout(()=>{t.classList.add('opacity-0','translate-x-4');setTimeout(()=>t.remove(),300);},3500);}
+
+        function openConfigModal(){document.getElementById('apiKeyInput').value=customApiKeyV3;updateJudgeModeInfoV3();document.getElementById('configModal').classList.remove('hidden');}
+        function closeConfigModal(){document.getElementById('configModal').classList.add('hidden');}
+        function saveApiKey(){customApiKeyV3=document.getElementById('apiKeyInput').value.trim();localStorage.setItem('trainer_gemini_api_key',customApiKeyV3);closeConfigModal();updateJudgeModeInfoV3();showToastV3(customApiKeyV3?'AI審判モードを有効にしました。':'簡易判定モードに切り替えました。','success');}
+
+        async function finishSession(){
+            const userTurns=conversationHistoryV3.filter(h=>h.role==='user').length;if(!userTurns)return showToastV3('最低1回は対話してください。','warning');
+            stopSessionV3();recomputeEvaluationV3();
+            const modal=document.getElementById('feedbackModal'),content=document.getElementById('modalContent');modal.classList.remove('hidden');
+            const required=selectedPersonaV3.rubrics.filter(r=>r.required),requiredDone=required.filter(r=>evaluationStateV3.criteria[r.id].quality>=2).length;
+            const rows=selectedPersonaV3.rubrics.map(r=>{const s=evaluationStateV3.criteria[r.id],pts=Math.round(r.weight*s.quality/3),q=['未達','触れた','達成','高品質'][s.quality];return `<tr class="border-t border-slate-800"><td class="py-2 pr-2 text-slate-200">${escapeHtmlV3(r.label)}${r.required?' <span class="text-amber-300">*</span>':''}</td><td class="py-2 px-2 whitespace-nowrap">${q}</td><td class="py-2 px-2 whitespace-nowrap">${pts}/${r.weight}</td><td class="py-2 pl-2 text-slate-400">${escapeHtmlV3(s.evidence||s.reason||'発言なし')}</td></tr>`;}).join('');
+            const flags=evaluationStateV3.ngFlags.length?`<div class="bg-rose-950/30 border border-rose-800/60 rounded-xl p-4"><h4 class="font-bold text-rose-300 mb-2"><i class="fa-solid fa-triangle-exclamation mr-1.5"></i>要修正の発言</h4><ul class="space-y-1 text-xs">${evaluationStateV3.ngFlags.map(f=>`<li>・${escapeHtmlV3(f.reason)}：${escapeHtmlV3(f.evidence)}</li>`).join('')}</ul></div>`:'';
+            const next=selectedPersonaV3.rubrics.find(r=>r.id===evaluationStateV3.nextFocusId);
+            content.innerHTML=`<div class="space-y-4"><div class="p-4 rounded-xl ${evaluationStateV3.success?'bg-emerald-950/40 border border-emerald-800/60':'bg-rose-950/40 border border-rose-800/60'}"><div class="text-xs uppercase font-bold tracking-wider mb-1">商談判定結果</div><div class="text-lg font-bold ${evaluationStateV3.success?'text-emerald-300':'text-rose-300'}">${evaluationStateV3.success?'🎉 突破・成約合意':'❌ 未突破'}</div><div class="mt-2 text-xs text-slate-300">${evaluationStateV3.score}点｜必須 ${requiredDone}/${required.length}｜有効発言 ${evaluationStateV3.substantiveTurns}回｜重大NG ${evaluationStateV3.ngFlags.filter(f=>f.severity==='major').length}件</div></div><div class="overflow-x-auto bg-slate-950/60 border border-slate-800 rounded-xl p-4"><h4 class="font-bold text-blue-300 mb-2">評価明細</h4><table class="w-full text-xs text-left"><thead class="text-slate-500"><tr><th>項目</th><th>品質</th><th>得点</th><th>根拠となった発言</th></tr></thead><tbody>${rows}</tbody></table></div>${flags}<div class="bg-amber-950/20 border border-amber-800/50 rounded-xl p-4"><h4 class="font-bold text-amber-300 mb-2"><i class="fa-solid fa-lightbulb mr-1.5"></i>次に改善する一点</h4><p class="text-slate-300">${escapeHtmlV3(next?.goal||'全項目を満たしています。')}</p></div><div class="bg-slate-950/60 border border-slate-800 rounded-xl p-4"><h4 class="font-bold text-emerald-300 mb-2">この顧客への模範的な次の一言</h4><p class="text-slate-200">${escapeHtmlV3(selectedPersonaV3.coachingLine)}</p></div><p class="text-[10px] text-slate-500">* 2以上が実質達成。突破は80点以上、全必須項目達成、有効発言3回以上、重大NGなしのすべてが必要です。</p></div>`;
+        }
+        function closeModal(){document.getElementById('feedbackModal').classList.add('hidden');}
     </script>
 </body>
 </html>
