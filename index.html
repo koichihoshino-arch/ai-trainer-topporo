@@ -276,20 +276,21 @@
                 color: 'border-amber-500/40 text-amber-400',
                 desc: '「入ったばかりで収入も少ないし、お金払って任せるのは勿体ない。自分で適当にやります」',
                 openingLine: 'いや〜まだ入社したばかりで収入も少ないですし！お金を出してまでお願いするのは勿体ないかな〜と。自分で適当にやってみようと思うのですが…',
+                hints: {
+                    step1: '【共感・受容】まずは「入社直後は費用を抑えたいですよね、お気持ちすごく分かります」と100%肯定する。',
+                    step2: '【経費化と手当】「実はこの利用料自体も全額経費になります。さらに適正な経費計上で手当（ハイトク等）の基準を守れます」と伝える。',
+                    step3: '【1年お試し比較】「ずっと続ける必要はありません。まずは今年1年だけプロに任せて、確定申告がどれだけ楽でお得か試してみませんか？」と出口を示す。'
+                },
                 systemInstruction: `あなたは生命保険会社の新人営業職員（年収200万円程度・白色申告）です。
 営業担当者から確定申告記帳代行（エフアンドエム/カルク）の契約提案を受けています。
-【難易度：極めて高（実戦ハードモード）】
-あなたは簡単に納得しないガードの非常に固い顧客です。
-・1回目：「収入が少ないから自分で適当にやる」「先輩も自分でできると言っていた」と強く断る。
-・2回目（安さやメリットを言われても）：「でも毎月お金かかるのは痛いし…」「解約するとき面倒くさそうだし…」と別の懸念で粘る。
-・3回目：「うーん、でも今年の確定申告が終わってから考えようかな…」と先延ばしにする。
-【スコアルール】
-・初期スコア: 10
-・単なる安さや一方的説明：-10〜-20。
-・「共感」＋「利用料の全額経費化」＋「所得調整での手当維持」＋「1年お試しの比較」が揃った時のみ：+25〜+35。
-・85以上で成約合意。
-文末に必ず以下を付与：
-[SCORE: 数値, STATUS: ステータス名]`
+【難易度：実戦版】
+初めは「自分でできる」「お金が勿体ない」と抵抗しますが、営業担当が以下のポイントを押さえて話してきたら徐々に軟化してください。
+・共感（不安への理解）
+・利用料が全額経費になる
+・手当（ハイトク・所得調整）の維持
+・1年だけお試しで比較
+スコアが80点以上になったら「それなら1年だけ試してみようかな」と合意してください。
+文末に必ず以下を付与：[SCORE: 数値, STATUS: ステータス名]`
             },
             {
                 id: 'competitor_urban',
@@ -299,15 +300,16 @@
                 color: 'border-purple-500/40 text-purple-400',
                 desc: '「ずっと他社使ってて不満もないし、担当者に悪い。乗り換え手続きも面倒」',
                 openingLine: 'あ〜ずっとアーバンさんにお任せしていて不満もないですし、今の担当者さんにもお世話になってて変えるの申し訳ないんですよね。手続きも面倒そうですし…',
+                hints: {
+                    step1: '【他社・担当への敬意】「〇〇さんとの関係性を大切にされているのは本当に素晴らしいですね」と褒める（他社批判は厳禁）。',
+                    step2: '【3分の移行と差別化】「乗り換え手続きは今期の連絡1本（約3分）で完了します。スマホアプリで毎月の経費や手当の進捗がいつでも見れます」と利便性を提示。',
+                    step3: '【お試し乗り換え】「来年1年だけ使ってアプリの便利さを比較していただき、合わなければいつでも元に戻せますよ」と提案。'
+                },
                 systemInstruction: `あなたは生保営業歴4〜5年の中堅職員（年収350〜400万円・他社利用中）です。
 他社担当者との義理があり、乗り換え手続きの手間を嫌がります。
-【難易度：極めて高（実戦ハードモード）】
-・初期スコア: 10
-・他社批判をすると激怒し-20。
-・「他社への敬意」＋「移行手続き3分で完了」＋「アプリ進捗管理の差別化」＋「長期コストの比較」が提示された場合のみ+25〜+35。
-・85以上で成約合意。
-文末に必ず以下を付与：
-[SCORE: 数値, STATUS: ステータス名]`
+他社批判をされると激怒して拒絶しますが、他社への敬意・移行の手軽さ（3分）・アプリの便利さを提示されたら好意的に受け止めてください。
+スコアが80点以上で成約合意。
+文末に必ず以下を付与：[SCORE: 数値, STATUS: ステータス名]`
             },
             {
                 id: 'confident_veteran',
@@ -317,15 +319,16 @@
                 color: 'border-rose-500/40 text-rose-400',
                 desc: '「20年自分でやってて調査も入ったことない。適当にやって非課税にできてるから大丈夫」',
                 openingLine: '私もう20年ずっと自分でやってるから大丈夫ですよ！税務調査なんて今まで一度も入ったことないし、適当に経費作って税金かからないようにできてるから！',
+                hints: {
+                    step1: '【20年の実績称賛】「20年間も営業と確定申告をご自身で両立されてきたのは本当に尊敬します！」と敬意を払う。',
+                    step2: '【税務環境の激変】「実は最近、国税庁のOCRシステム導入や白色申告の帳簿保存が義務化され、過去5〜7年遡っての指摘事例が急増しています」と客観的事実を伝える。',
+                    step3: '【税理士印の守り】「税理士の署名押印があるだけで、万が一の税務署対応も税理士が前面に立ちます。安心の保険として1年試しませんか」と提案。'
+                },
                 systemInstruction: `あなたは生保営業歴20年のベテラン職員（白色申告）です。
 自力でやってきた自負がありプライドが高いです。
-【難易度：極めて高（実戦ハードモード）】
-・初期スコア: 10
-・「自分でやるのは危険」と上から目線で言うと-25。
-・「20年の実績への敬意」＋「OCRマークシート導入と白色帳簿保存厳罰化のファクト」＋「税理士印の防御力」＋「青65での堂々たる非課税」が提示されたら+25〜+35。
-・85以上で成約合意。
-文末に必ず以下を付与：
-[SCORE: 数値, STATUS: ステータス名]`
+「間違っている」「危険」と否定されると反発しますが、20年の実績を認められた上で、近年のマークシート/OCRや白色帳簿保存の厳罰化ファクト、税理士印の盾を説明されると納得します。
+スコアが80点以上で成約合意。
+文末に必ず以下を付与：[SCORE: 数値, STATUS: ステータス名]`
             },
             {
                 id: 'allowance_tax_saving',
@@ -335,14 +338,16 @@
                 color: 'border-emerald-500/40 text-emerald-400',
                 desc: '「ハイトクや母子手当を満額もらいたい。でも青色申告は難しそうで不安」',
                 openingLine: '税金は安くしたいし手当（ハイトクや母子手当）も減らしたくないんですけど、青色申告って難しそうだし自分じゃ無理ですよね…？',
+                hints: {
+                    step1: '【不安の肯定】「手当が減ってしまうのは死活問題ですし、青色申告の複式簿記はプロでも複雑なので不安で当然です」と共感。',
+                    step2: '【青65の所得調整】「青色65万円控除を使うことで、所得をグッと抑えて手当を満額維持できる可能性が極めて高くなります」と解説。',
+                    step3: '【丸投げの楽さ】「面倒な計算は一切不要で、毎月の領収書を専用封筒に入れて送るだけです」と心理的ハードルをゼロにする。'
+                },
                 systemInstruction: `あなたは手当（挙績手当・母子手当）を守りたい生保職員です。
 損をしたくないが手続きの難しさに強い抵抗感があります。
-【難易度：極めて高（実戦ハードモード）】
-・初期スコア: 10
-・「手当減額の不安への共感」＋「青65での所得調整」＋「封筒に入れて送るだけの簡便さ」が提示されたら+25〜+35。
-・85以上で成約合意。
-文末に必ず以下を付与：
-[SCORE: 数値, STATUS: ステータス名]`
+青色申告の65万円控除による所得調整と、封筒に入れて送るだけの簡便さを分かりやすく説明されると急速に納得します。
+スコアが80点以上で成約合意。
+文末に必ず以下を付与：[SCORE: 数値, STATUS: ステータス名]`
             }
         ];
 
@@ -355,8 +360,10 @@
         let currentSatisfactionScore = 10;
         let currentSatisfactionStatus = '鉄壁の拒絶';
         let customApiKey = localStorage.getItem('trainer_gemini_api_key') || '';
-        let lastAiUtterance = ''; // AIの直前発言記録（エコー除去用）
-        let micCooldownTimer = null;
+
+        // Anti-interruption debounce timer
+        let pendingSpeechText = '';
+        let speechDebounceTimer = null;
 
         window.addEventListener('DOMContentLoaded', () => {
             renderPersonaOptions();
@@ -365,33 +372,33 @@
             setupSpeechRecognition();
         });
 
-        function checkEnvironmentProtocol() {
-            if (window.location.protocol === 'file:') {
-                document.getElementById('protocolNotice').classList.remove('hidden');
-            }
+        function toggleHintDrawer() {
+            const drawer = document.getElementById('hintDrawer');
+            drawer.classList.toggle('hidden');
         }
 
-        function renderPersonaOptions() {
-            const container = document.getElementById('personaContainer');
-            container.innerHTML = personas.map(p => `
-                <div onclick="selectPersona('${p.id}')" id="persona_opt_${p.id}" class="p-3 border rounded-xl cursor-pointer transition flex items-start space-x-3 ${p.id === selectedPersona.id ? 'bg-slate-800 border-blue-500 ring-1 ring-blue-500/40' : 'bg-slate-950/40 border-slate-800 hover:bg-slate-800/40'}">
-                    <div class="w-8 h-8 rounded-lg bg-slate-900 border border-slate-800 flex items-center justify-center shrink-0 mt-0.5 ${p.color}">
-                        <i class="fa-solid ${p.icon}"></i>
-                    </div>
-                    <div class="flex-1 min-w-0">
-                        <div class="flex items-center justify-between">
-                            <span class="text-xs font-bold text-slate-200 truncate">${p.title}</span>
-                            <span class="text-[9px] px-1.5 py-0.5 rounded bg-slate-900 border border-slate-800 text-slate-400 shrink-0 ml-1">${p.tag}</span>
-                        </div>
-                        <p class="text-[11px] text-slate-400 line-clamp-2 mt-1 leading-snug">${p.desc}</p>
-                    </div>
+        function updateHintDrawer() {
+            const content = document.getElementById('hintContent');
+            const h = selectedPersona.hints;
+            content.innerHTML = `
+                <div class="bg-slate-900/80 p-2.5 rounded-lg border border-slate-800">
+                    <span class="text-blue-400 font-bold block mb-1">ステップ1</span>
+                    <p class="leading-relaxed">${h.step1}</p>
                 </div>
-            `).join('');
+                <div class="bg-slate-900/80 p-2.5 rounded-lg border border-slate-800">
+                    <span class="text-amber-400 font-bold block mb-1">ステップ2</span>
+                    <p class="leading-relaxed">${h.step2}</p>
+                </div>
+                <div class="bg-slate-900/80 p-2.5 rounded-lg border border-slate-800">
+                    <span class="text-emerald-400 font-bold block mb-1">ステップ3（成約）</span>
+                    <p class="leading-relaxed">${h.step3}</p>
+                </div>
+            `;
         }
 
         function selectPersona(id) {
             if (isSessionActive) {
-                showToast('対話中はペルソナを変更できません。中断してください。', 'warning');
+                showToast('対話中はペルソナを変更できません。一度中断してください。', 'warning');
                 return;
             }
             selectedPersona = personas.find(p => p.id === id);
@@ -403,10 +410,12 @@
             document.getElementById('activePersonaTitle').innerText = selectedPersona.title;
             document.getElementById('activePersonaTag').innerText = selectedPersona.tag;
             document.getElementById('activePersonaDesc').innerText = selectedPersona.desc;
+            document.getElementById('scoreFeedbackNote').innerText = '';
             updateSatisfactionUI(10, '鉄壁の拒絶');
+            updateHintDrawer();
         }
 
-        function updateSatisfactionUI(score, status) {
+        function updateSatisfactionUI(score, status, note = '') {
             currentSatisfactionScore = score;
             currentSatisfactionStatus = status;
 
@@ -416,7 +425,11 @@
             const statusEl = document.getElementById('satisfactionStatus');
             statusEl.innerText = status;
 
-            if (score >= 85) {
+            if (note) {
+                document.getElementById('scoreFeedbackNote').innerText = note;
+            }
+
+            if (score >= 80) {
                 statusEl.className = "text-xs font-bold px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 animate-pulse";
             } else if (score <= 15) {
                 statusEl.className = "text-xs font-bold px-3 py-1 rounded-full bg-rose-500/20 text-rose-400 border border-rose-500/40";
@@ -443,179 +456,288 @@
                 recognition = new SpeechRecognition();
                 recognition.lang = 'ja-JP';
                 recognition.interimResults = true;
-                recognition.continuous = false; // continuous=false is much more stable in nested iframes
+                recognition.continuous = true;
                 recognition.maxAlternatives = 1;
 
                 recognition.onstart = () => {
                     isMicOn = true;
                     updateMicUI();
-                    document.getElementById('speechStateLabel').innerText = "お話しください（聞き取り中）...";
+                    document.getElementById('speechStateLabel').innerText = "あなたの声を聞き取り中...";
                 };
 
                 recognition.onresult = (event) => {
-                    // AIが発声中、またはクールダウン中なら音声を完全に無視
-                    if (isAiSpeaking) {
-                        return;
-                    }
+                    if (isAiSpeaking) return; // Ignore if AI is speaking
 
-                    let interimTranscript = '';
-                    let finalTranscript = '';
+                    let interim = '';
+                    let finalBlock = '';
 
                     for (let i = event.resultIndex; i < event.results.length; ++i) {
                         const transcript = event.results[i][0].transcript;
                         if (event.results[i].isFinal) {
-                            finalTranscript += transcript;
+                            finalBlock += transcript;
                         } else {
-                            interimTranscript += transcript;
+                            interim += transcript;
                         }
                     }
 
-                    if (interimTranscript) {
-                        document.getElementById('interimText').innerText = interimTranscript;
-                        document.getElementById('interimText').className = 'text-blue-400 font-medium truncate';
+                    if (finalBlock) {
+                        pendingSpeechText += (pendingSpeechText ? ' ' : '') + finalBlock;
                     }
 
-                    if (finalTranscript.trim() !== '') {
-                        const cleanSpeech = finalTranscript.trim();
-                        
-                        // エコー防止：直前のAI発言と80%以上似ている場合はスピーカー拾いと判定して破棄
-                        if (isEchoOfAi(cleanSpeech, lastAiUtterance)) {
-                            console.warn("AIの自己エコー（反響音）を検知して自動破棄:", cleanSpeech);
-                            document.getElementById('interimText').innerText = '※スピーカーの音声を検知したため除外しました';
-                            document.getElementById('interimText').className = 'text-amber-400 truncate text-xs';
-                            return;
-                        }
+                    const liveDisplay = pendingSpeechText + (interim ? ' (' + interim + ')' : '');
+                    if (liveDisplay) {
+                        document.getElementById('interimText').innerText = liveDisplay;
+                        document.getElementById('interimText').className = 'text-blue-300 font-medium truncate';
+                        document.getElementById('confirmSpeechBtn').classList.remove('hidden');
+                    }
 
-                        document.getElementById('interimText').innerText = '認識: "' + cleanSpeech + '"';
-                        document.getElementById('interimText').className = 'text-emerald-400 truncate';
-                        handleUserSpeech(cleanSpeech);
+                    // Auto send debounce: wait 2.5s of silence before sending to avoid cutting user off
+                    const autoSend = document.getElementById('autoSendToggle').checked;
+                    if (autoSend && (finalBlock || pendingSpeechText)) {
+                        if (speechDebounceTimer) clearTimeout(speechDebounceTimer);
+                        speechDebounceTimer = setTimeout(() => {
+                            sendInterimNow();
+                        }, 2500); // 2.5 seconds pause gives enough time for breathing
                     }
                 };
 
                 recognition.onerror = (event) => {
                     console.warn('Speech Recognition Event Error:', event.error);
                     const stateLabel = document.getElementById('speechStateLabel');
-                    
-                    if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
-                        stateLabel.innerText = "マイクが拒否されています（鍵アイコンで許可）";
-                        showToast('マイク許可が必要です。左の「マイク許可を実行」を押してください。', 'error');
-                    } else if (event.error === 'no-speech') {
-                        stateLabel.innerText = "声が検出されませんでした。もう一度お話しください";
-                    } else {
-                        stateLabel.innerText = "状態: " + event.error;
+                    if (event.error === 'not-allowed') {
+                        stateLabel.innerText = "マイク拒否（アドレスバーの鍵マークで許可）";
+                    } else if (event.error !== 'no-speech') {
+                        stateLabel.innerText = "認識状態: " + event.error;
                     }
-                    isMicOn = false;
-                    updateMicUI();
                 };
 
                 recognition.onend = () => {
                     isMicOn = false;
                     updateMicUI();
+                    // Auto-restart if session active and AI is not speaking
                     if (isSessionActive && !isAiSpeaking) {
-                        document.getElementById('speechStateLabel').innerText = "マイク待機中（下のマイクボタンで再開）";
+                        try { recognition.start(); } catch(e){}
                     }
                 };
 
                 engineStatus.innerHTML = '<span class="text-emerald-400 font-semibold"><i class="fa-solid fa-circle-check"></i> 音声認識準備完了</span>';
             } catch (err) {
                 console.error("Speech Recognition setup error:", err);
-                engineStatus.innerHTML = '<span class="text-rose-400">初期化失敗</span>';
             }
         }
 
-        async function testMicPermission() {
-            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-                showToast('お使いのブラウザはマイク取得APIに対応していません。', 'error');
-                return;
-            }
+        function sendInterimNow() {
+            if (speechDebounceTimer) clearTimeout(speechDebounceTimer);
+            const textToSend = pendingSpeechText.trim();
+            if (!textToSend) return;
 
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                showToast('マイクへのアクセスが許可されました！', 'success');
-                stream.getTracks().forEach(track => track.stop());
-                // Test speech recognition immediately
-                startMic();
-            } catch (err) {
-                console.error("Mic test error:", err);
-                showToast('マイクがブロックされています。ブラウザ上部のアドレスバー左にある「南京錠（設定）」からマイクを「許可」してください。', 'error');
-            }
+            pendingSpeechText = '';
+            document.getElementById('confirmSpeechBtn').classList.add('hidden');
+            document.getElementById('interimText').innerText = '送信中: "' + textToSend + '"';
+            handleUserSpeech(textToSend);
         }
 
-        function toggleSession() {
+        function handleManualSend(e) {
+            e.preventDefault();
+            const input = document.getElementById('manualInput');
+            const text = input.value.trim();
+            if (!text) return;
+
             if (!isSessionActive) {
                 startSession();
-            } else {
-                stopSession();
             }
+
+            input.value = '';
+            handleUserSpeech(text);
         }
 
-        function startSession() {
-            isSessionActive = true;
-            conversationHistory = [];
-            document.getElementById('chatHistory').innerHTML = '';
-            updateSatisfactionUI(10, '鉄壁の拒絶');
+        async function handleUserSpeech(text) {
+            if (!isSessionActive) return;
 
-            const startBtn = document.getElementById('startBtn');
-            startBtn.className = "w-full py-3 px-4 bg-rose-600 hover:bg-rose-500 text-white font-semibold rounded-xl transition flex items-center justify-center space-x-2 shadow-lg shadow-rose-600/30";
-            startBtn.innerHTML = `<i class="fa-solid fa-stop"></i><span>練習中断</span>`;
-
-            document.getElementById('finishBtn').disabled = false;
-
-            const statusBadge = document.getElementById('statusBadge');
-            statusBadge.className = "px-3 py-1 rounded-full text-xs font-medium bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center";
-            statusBadge.innerHTML = `<i class="fa-solid fa-circle text-[8px] mr-1.5 text-emerald-400 animate-ping"></i> 商談中`;
-
-            appendChatMessage('system', `対話スタート。顧客「${selectedPersona.title}」へクロージングを行います。`);
-
-            const openingText = selectedPersona.openingLine;
-            appendChatMessage('model', openingText);
-            conversationHistory.push({ role: 'model', text: openingText });
-
-            speakText(openingText, () => {
-                if (isSessionActive) {
-                    startMic();
+            // Anti-echo safeguard
+            if (conversationHistory.length > 0) {
+                const lastModelMsg = conversationHistory.filter(m => m.role === 'model').slice(-1)[0];
+                if (lastModelMsg && text.includes(lastModelMsg.text.slice(0, 10))) {
+                    console.warn('Filtered out echoed speech');
+                    return;
                 }
-            });
-        }
+            }
 
-        function stopSession() {
-            isSessionActive = false;
+            appendChatMessage('user', text);
+            conversationHistory.push({ role: 'user', text: text });
+
+            // Silence mic while AI is processing and answering
             stopMic();
-            if ('speechSynthesis' in window) {
-                window.speechSynthesis.cancel();
+            const loadingMsgId = appendChatMessage('ai_loading', 'AI顧客が反応を思考中...');
+
+            try {
+                let rawAiResponse;
+                if (customApiKey) {
+                    rawAiResponse = await callGeminiPersonaAPI();
+                } else {
+                    rawAiResponse = await simulatePersonaResponse(text);
+                }
+
+                document.getElementById(loadingMsgId)?.remove();
+                const parsed = parseAiResponse(rawAiResponse);
+
+                if (parsed.score !== null) {
+                    updateSatisfactionUI(parsed.score, parsed.status, parsed.reason);
+                }
+
+                appendChatMessage('model', parsed.cleanText);
+                conversationHistory.push({ role: 'model', text: parsed.cleanText });
+
+                if (parsed.score >= 80) {
+                    appendChatMessage('system', '🎉 【成約成立】相手の懸念を完璧に解消し、クロージング契約合意を獲得しました！');
+                }
+
+                speakText(parsed.cleanText, () => {
+                    if (isSessionActive) {
+                        setTimeout(() => startMic(), 600); // 0.6s cooldown avoids speaker echo
+                    }
+                });
+
+            } catch (err) {
+                console.error("AI Response error:", err);
+                document.getElementById(loadingMsgId)?.remove();
+                appendChatMessage('system', '応答エラーが発生しました。もう一度お話しください。');
+                if (isSessionActive) setTimeout(() => startMic(), 500);
             }
-
-            const startBtn = document.getElementById('startBtn');
-            startBtn.className = "w-full py-3 px-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-semibold rounded-xl transition flex items-center justify-center space-x-2 shadow-lg shadow-blue-600/30";
-            startBtn.innerHTML = `<i class="fa-solid fa-play"></i><span>対話スタート</span>`;
-
-            const statusBadge = document.getElementById('statusBadge');
-            statusBadge.className = "px-3 py-1 rounded-full text-xs font-medium bg-slate-800 text-slate-400 border border-slate-700 flex items-center";
-            statusBadge.innerHTML = `<i class="fa-solid fa-circle text-[8px] mr-1.5 text-slate-500"></i> 待機中`;
-            updateMicUI();
         }
 
-        function toggleMic() {
-            if (isMicOn) {
-                stopMic();
+        // Flexible Rule-Based Engine with Multi-Level Keyword Matching
+        async function simulatePersonaResponse(userText) {
+            await new Promise(r => setTimeout(r, 700));
+
+            let scoreDelta = 0;
+            let feedback = "";
+            let responseText = "";
+            let status = currentSatisfactionStatus;
+
+            // Common keyword checks
+            const hasEmpathy = /大変|お疲れ様|お気持ち|よくわか|共感|ご苦労|不安|わかります|ご自身で|素晴らしい|尊敬|努力/.test(userText);
+            const hasExpense = /経費|全額|落とせ|落とす|引ける|代行料|費用も|税金|節税|コスト/.test(userText);
+            const hasAllowance = /手当|ハイトク|母子|所得|扶養|減額|維持|守る|調整/.test(userText);
+            const hasTrial = /1年|お試し|比較|試して|まず|今年だけ|元に戻|やめても/.test(userText);
+            const hasEase = /3分|封筒|送るだけ|任せるだけ|簡単|手間|丸投げ|スマホ|アプリ/.test(userText);
+            const hasTaxFact = /OCR|マークシート|税理士|調査|過去|厳罰|白色|帳簿|7年|5年|安心/.test(userText);
+            const isNegative = /絶対|嘘|ダメ|危険|違反|違う/.test(userText);
+
+            if (selectedPersona.id === 'newbie_low_income') {
+                if (hasEmpathy && (hasExpense || hasAllowance) && hasTrial) {
+                    scoreDelta = 40;
+                    feedback = "共感＋経費化＋手当＋1年比較が完璧に刺さりました！(+40)";
+                    responseText = "なるほど…利用料自体も経費で落とせて、手当が削られないようにできるなら…確かに1年だけ試して自分でやるのと比較してみるのはアリですね。お願いしてみようかな！";
+                    status = "成約合意";
+                } else if (hasExpense && hasTrial) {
+                    scoreDelta = 25;
+                    feedback = "経費化と1年お試しの提示が効果的でした (+25)";
+                    responseText = "払った分も経費になるんですね。でも、解約したくなったときはすぐ戻せますか？";
+                    status = "少し傾聴";
+                } else if (hasEmpathy) {
+                    scoreDelta = 15;
+                    feedback = "不安への共感でガードが緩みました (+15)";
+                    responseText = "そうなんです、新人で本当に手元にお金が残るか不安で…。具体的に任せると何が変わるんですか？";
+                    status = "少し傾聴";
+                } else if (isNegative) {
+                    scoreDelta = -15;
+                    feedback = "一方的な押し付けで警戒されました (-15)";
+                    responseText = "新人で余裕がないって言ってるのに、無理強いしないでください！";
+                    status = "強い拒絶";
+                } else {
+                    scoreDelta = 5;
+                    responseText = "先輩からも自分でできるって聞いたんですけど、わざわざ毎月お金を払うほどのメリットがあるんですかね…？";
+                    status = "慎重に検討中";
+                }
+            } else if (selectedPersona.id === 'competitor_urban') {
+                if (/悪く|ダメ|ひどい|解約して/.test(userText)) {
+                    scoreDelta = -20;
+                    feedback = "他社担当の否定で不快感を与えました (-20)";
+                    responseText = "今の担当者さんには本当によくしてもらってるんです。他社さんの悪口は聞きたくないです。";
+                    status = "強い拒絶";
+                } else if (hasEmpathy && (hasEase || hasTrial)) {
+                    scoreDelta = 35;
+                    feedback = "他社への敬意＋移行の容易さ＋1年比較が高評価 (+35)";
+                    responseText = "今の担当さんとの関係も尊重してくれて、手続きも電話1本（3分）で来年からスムーズに切り替えられるなら…1年だけアプリ試してみようかしら。";
+                    status = "成約合意";
+                } else if (hasEase) {
+                    scoreDelta = 20;
+                    feedback = "手続きの手間がないことが伝わりました (+20)";
+                    responseText = "切り替えって書類とか面倒じゃないんですか？本当にすぐ終わるなら少し気になりますけど…";
+                    status = "少し傾聴";
+                } else {
+                    scoreDelta = 5;
+                    responseText = "アーバンさんで特に困ってないんですよね。わざわざ変える理由がまだピンとこないというか…";
+                    status = "慎重に検討中";
+                }
+            } else if (selectedPersona.id === 'confident_veteran') {
+                if (/危険|間違|違反|捕まる/.test(userText)) {
+                    scoreDelta = -25;
+                    feedback = "20年の自己実績を否定して反発されました (-25)";
+                    responseText = "20年間一度も問題なかったのに、あなたに間違ってるとか言われる筋合いはありません！";
+                    status = "強い拒絶";
+                } else if (hasEmpathy && (hasTaxFact || hasTrial)) {
+                    scoreDelta = 35;
+                    feedback = "実績称賛＋税理士の盾・税務署ファクトで納得 (+35)";
+                    responseText = "まあ…確かに最近の税務署はOCRとか厳しくなってるって所長も言ってたし、税理士さんのハンコで守ってもらえるなら、保険と思って1年だけ任せてみようかしら。";
+                    status = "成約合意";
+                } else if (hasEmpathy) {
+                    scoreDelta = 15;
+                    feedback = "20年の実績への敬意が響きました (+15)";
+                    responseText = "そう言ってもらえると嬉しいわね。でも今まで大丈夫だったのに、今さら頼む必要あるかしら？";
+                    status = "少し傾聴";
+                } else {
+                    scoreDelta = 5;
+                    responseText = "私ずっと自分でやって非課税にしてきたから大丈夫よ。自分より詳しい人がいるとも思えないしね。";
+                    status = "過信・拒絶";
+                }
             } else {
-                startMic();
+                // Allowance / tax saving persona
+                if (hasAllowance && (hasEase || hasTrial)) {
+                    scoreDelta = 35;
+                    feedback = "手当の所得調整＋封筒に入れるだけの楽さで成約合意 (+35)";
+                    responseText = "青色65万で手当を満額守れる上に、計算もいらず封筒に入れて送るだけなら安心ですね！それならぜひお願いしたいです！";
+                    status = "成約合意";
+                } else if (hasAllowance || hasExpense) {
+                    scoreDelta = 20;
+                    feedback = "手当と所得調整の重要性が響きました (+20)";
+                    responseText = "手当が減らないように所得をコントロールしてくれるんですね。でも青色の帳簿って本当に自分は何もしなくていいんですか？";
+                    status = "少し傾聴";
+                } else {
+                    scoreDelta = 5;
+                    responseText = "税金や手当は心配ですけど、青色申告って難しくて結局挫折しそうで不安なんです…。";
+                    status = "慎重に検討中";
+                }
             }
+
+            const newScore = Math.max(0, Math.min(100, currentSatisfactionScore + scoreDelta));
+            if (newScore >= 80) status = "成約合意";
+
+            return `${responseText}\n[SCORE: ${newScore}, STATUS: ${status}, REASON: ${feedback}]`;
+        }
+
+        function parseAiResponse(rawText) {
+            const match = rawText.match(/\[SCORE:\s*(\d+),\s*STATUS:\s*([^,\]]+)(?:,\s*REASON:\s*([^\]]+))?\]/i);
+            if (match) {
+                const score = parseInt(match[1], 10);
+                const status = match[2].trim();
+                const reason = match[3] ? match[3].trim() : '';
+                const cleanText = rawText.replace(/\[SCORE:[^\]]+\]/gi, '').trim();
+                return { cleanText, score, status, reason };
+            }
+            return { cleanText: rawText, score: null, status: '慎重に検討中', reason: '' };
         }
 
         function startMic() {
             if (!recognition) {
                 setupSpeechRecognition();
             }
-            if (!recognition) {
-                showToast('音声認識が利用できません。下の入力欄から送信してください。', 'warning');
-                return;
-            }
+            if (!recognition) return;
 
             try {
                 recognition.start();
             } catch(e) {
-                console.warn('Recognition start exception, retrying reset:', e);
                 try {
                     recognition.stop();
                     setTimeout(() => recognition.start(), 200);
@@ -854,15 +976,9 @@
                 return;
             }
 
-            // AI発話前にマイクを即座に完全停止（スピーカー音の拾い込みを絶対防止）
-            stopMic();
             window.speechSynthesis.cancel();
-            if (micCooldownTimer) clearTimeout(micCooldownTimer);
-
             isAiSpeaking = true;
-            lastAiUtterance = text; // エコー除去用に記録
             document.getElementById('personaAvatar').classList.add('ai-speaking');
-            document.getElementById('speechStateLabel').innerText = "AI顧客が発話中（マイク停止）...";
 
             const utterance = new SpeechSynthesisUtterance(text);
             utterance.lang = 'ja-JP';
@@ -882,15 +998,7 @@
             const handleFinish = () => {
                 isAiSpeaking = false;
                 document.getElementById('personaAvatar').classList.remove('ai-speaking');
-                
-                // スピーカーの反響・余韻が収まるまで0.8秒待機してからマイクをONにする（超重要）
-                document.getElementById('speechStateLabel').innerText = "発言準備中...";
-                micCooldownTimer = setTimeout(() => {
-                    if (isSessionActive && !isAiSpeaking) {
-                        startMic();
-                    }
-                    if (onEndCallback) onEndCallback();
-                }, 800);
+                if (onEndCallback) onEndCallback();
             };
 
             utterance.onend = handleFinish;
@@ -900,17 +1008,6 @@
             };
 
             window.speechSynthesis.speak(utterance);
-        }
-
-        // AIの音声拾い（エコー）を判定するフィルター関数
-        function isEchoOfAi(userText, aiText) {
-            if (!aiText || !userText) return false;
-            const normalize = s => s.replace(/[\s\u3000、。！？!?,.]/g, '');
-            const u = normalize(userText);
-            const a = normalize(aiText);
-            if (u.length >= 6 && a.includes(u)) return true;
-            if (a.length >= 6 && u.includes(a)) return true;
-            return false;
         }
 
         function appendChatMessage(role, text) {
