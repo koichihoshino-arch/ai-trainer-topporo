@@ -1,0 +1,1065 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>生保営業特化型 クロージング音声対話AIトレーナー</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+        .pulse-ring {
+            box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
+            animation: pulse-ring-anim 1.5s infinite;
+        }
+        @keyframes pulse-ring-anim {
+            0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+            70% { box-shadow: 0 0 0 14px rgba(239, 68, 68, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+        }
+        .ai-speaking {
+            animation: ai-pulse 0.9s ease-in-out infinite alternate;
+        }
+        @keyframes ai-pulse {
+            0% { transform: scale(1); border-color: #3b82f6; }
+            100% { transform: scale(1.06); border-color: #60a5fa; box-shadow: 0 0 20px rgba(59, 130, 246, 0.6); }
+        }
+        /* Custom scrollbar */
+        .custom-scroll::-webkit-scrollbar { width: 5px; }
+        .custom-scroll::-webkit-scrollbar-track { background: rgba(15, 23, 42, 0.6); }
+        .custom-scroll::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+        .custom-scroll::-webkit-scrollbar-thumb:hover { background: #475569; }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col justify-between selection:bg-blue-600 selection:text-white">
+
+    <header class="border-b border-slate-800/80 bg-slate-900/90 backdrop-blur sticky top-0 z-40 px-4 py-3">
+        <div class="max-w-7xl mx-auto flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <div class="p-2.5 bg-gradient-to-tr from-rose-600 via-amber-500 to-orange-500 rounded-xl text-white shadow-lg shadow-rose-600/20">
+                    <i class="fa-solid fa-fire text-xl"></i>
+                </div>
+                <div>
+                    <h1 class="font-bold text-lg leading-tight flex items-center flex-wrap gap-2">
+                        <span>生保特化型 クロージングAIトレーナー</span>
+                        <span class="text-[10px] bg-rose-500/20 text-rose-400 border border-rose-500/30 px-2 py-0.5 rounded-full font-bold">難易度：極高（実戦ハード）</span>
+                    </h1>
+                    <p class="text-xs text-slate-400">生命保険営業職員様向け 確定申告記帳代行の超厳格・クロージング特訓</p>
+                </div>
+            </div>
+            
+            <div class="flex items-center space-x-2">
+                <!-- Status Badge -->
+                <span id="statusBadge" class="px-3 py-1 rounded-full text-xs font-medium bg-slate-800 text-slate-400 border border-slate-700 flex items-center">
+                    <i class="fa-solid fa-circle text-[8px] mr-1.5 text-slate-500"></i> 待機中
+                </span>
+                <!-- Settings Button -->
+                <button onclick="openConfigModal()" class="p-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl border border-slate-700 text-xs flex items-center gap-1 transition" title="APIキー・環境設定">
+                    <i class="fa-solid fa-gear"></i>
+                    <span class="hidden sm:inline">設定</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <div id="protocolNotice" class="hidden bg-amber-500/10 border-b border-amber-500/30 text-amber-300 px-4 py-2 text-xs text-center">
+        <i class="fa-solid fa-triangle-exclamation mr-1.5"></i>
+        <span>マイク機能はセキュリティ上の理由で <strong>https://</strong> または <strong>localhost</strong> でのみ動作します（ローカルファイルの直接実行時は動作しない場合があります）。下のテキスト入力でも対話練習が可能です。</span>
+    </div>
+
+    <div id="toastContainer" class="fixed top-16 right-4 z-50 space-y-2 pointer-events-none"></div>
+
+    <main class="max-w-7xl mx-auto w-full p-4 flex-1 grid grid-cols-1 lg:grid-cols-12 gap-5">
+
+        <section class="lg:col-span-4 bg-slate-900/70 border border-slate-800 rounded-2xl p-4 flex flex-col justify-between space-y-4 shadow-xl">
+            <div>
+                <div class="flex items-center justify-between mb-2.5">
+                    <h2 class="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center">
+                        <i class="fa-solid fa-users text-blue-400 mr-2"></i>1. 顧客ペルソナを選択
+                    </h2>
+                    <span class="text-[10px] text-slate-400">全4パターン</span>
+                </div>
+
+                <!-- Persona List Container -->
+                <div class="space-y-2.5 max-h-[330px] overflow-y-auto pr-1 custom-scroll" id="personaContainer">
+                    <!-- Populated dynamically via JS -->
+                </div>
+
+                <!-- Voice Speed & Mic Test Controls -->
+                <div class="mt-4 pt-3 border-t border-slate-800/80 space-y-3">
+                    <div>
+                        <div class="flex justify-between text-xs font-medium text-slate-400 mb-1.5">
+                            <span class="flex items-center"><i class="fa-solid fa-gauge-high mr-1 text-slate-500"></i> AI話速（1.3x推奨）</span>
+                            <span id="rateVal" class="text-blue-400 font-bold">1.30x</span>
+                        </div>
+                        <input type="range" id="speechRate" min="0.8" max="2.0" step="0.05" value="1.3" oninput="document.getElementById('rateVal').innerText = parseFloat(this.value).toFixed(2) + 'x'" class="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-blue-500">
+                    </div>
+
+                    <div class="flex items-center justify-between text-[11px] bg-slate-950/60 p-2 rounded-xl border border-slate-800/60">
+                        <span class="text-slate-400 flex items-center">
+                            <i class="fa-solid fa-microphone-lines text-blue-400 mr-1.5"></i> マイク接続テスト:
+                        </span>
+                        <button type="button" onclick="testMicPermission()" class="px-2.5 py-1 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-[11px] font-semibold transition border border-blue-500 shadow">
+                            マイク許可を実行
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="space-y-2 pt-3 border-t border-slate-800/80">
+                <button id="startBtn" onclick="toggleSession()" class="w-full py-3 px-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 active:scale-[0.98] text-white font-semibold rounded-xl transition duration-200 flex items-center justify-center space-x-2 shadow-lg shadow-blue-600/30">
+                    <i class="fa-solid fa-play"></i>
+                    <span>対話スタート</span>
+                </button>
+
+                <!-- Direct clickable Mic toggle button -->
+                <button id="micBtn" onclick="toggleMic()" type="button" class="w-full py-2.5 px-4 bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold rounded-xl transition duration-200 flex items-center justify-center space-x-2 border border-slate-700 cursor-pointer shadow">
+                    <i class="fa-solid fa-microphone"></i>
+                    <span id="micBtnText">マイクを手動でONにする</span>
+                </button>
+
+                <button id="finishBtn" onclick="finishSession()" disabled class="w-full py-2.5 px-4 bg-emerald-600/10 hover:bg-emerald-600/20 text-emerald-400 border border-emerald-500/30 font-medium rounded-xl transition duration-200 flex items-center justify-center space-x-2 disabled:opacity-30 disabled:cursor-not-allowed">
+                    <i class="fa-solid fa-square-poll-vertical"></i>
+                    <span>商談終了・AI診断レポート</span>
+                </button>
+            </div>
+        </section>
+
+        <section class="lg:col-span-8 bg-slate-900/70 border border-slate-800 rounded-2xl p-4 flex flex-col justify-between space-y-4 shadow-xl">
+            
+            <!-- Persona Active Card & Live Score Meter -->
+            <div id="activePersonaCard" class="bg-slate-950/70 border border-slate-800 rounded-xl p-3.5 space-y-3">
+                <div class="flex items-center justify-between gap-3">
+                    <div class="flex items-center space-x-3 min-w-0">
+                        <div id="personaAvatar" class="w-12 h-12 rounded-2xl bg-slate-800 border-2 border-slate-700 flex items-center justify-center text-xl text-slate-300 shrink-0 transition-all">
+                            <i class="fa-solid fa-user-tie"></i>
+                        </div>
+                        <div class="min-w-0">
+                            <div class="flex items-center space-x-2">
+                                <h3 id="activePersonaTitle" class="font-bold text-sm sm:text-base text-slate-100 truncate">ペルソナを選択してください</h3>
+                                <span id="activePersonaTag" class="text-[10px] px-2 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700 shrink-0">未設定</span>
+                            </div>
+                            <p id="activePersonaDesc" class="text-xs text-slate-400 truncate mt-0.5">対話スタートボタンを押すとAI顧客が口を開きます。</p>
+                        </div>
+                    </div>
+                    
+                    <div class="text-right shrink-0">
+                        <span id="satisfactionStatus" class="text-xs font-bold px-3 py-1 rounded-full bg-slate-800 text-rose-400 border border-rose-500/30 shadow-sm">
+                            鉄壁の拒絶
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Satisfaction Meter Bar -->
+                <div>
+                    <div class="flex justify-between text-[11px] text-slate-400 mb-1">
+                        <span class="flex items-center"><i class="fa-solid fa-chart-simple mr-1 text-slate-500"></i> 顧客の納得度（成約ボーダーライン: 85%）</span>
+                        <span id="satisfactionScoreText" class="font-bold text-rose-400">10%</span>
+                    </div>
+                    <div class="w-full bg-slate-900 h-2.5 rounded-full overflow-hidden border border-slate-800 p-0.5">
+                        <div id="satisfactionBar" class="bg-gradient-to-r from-rose-600 via-amber-500 to-emerald-500 h-full w-[10%] rounded-full transition-all duration-500"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="chatHistory" class="flex-1 overflow-y-auto max-h-[350px] min-h-[250px] p-2 space-y-3 custom-scroll">
+                <div class="text-center py-16 text-slate-500 text-xs">
+                    <div class="w-12 h-12 rounded-full bg-slate-800/80 mx-auto mb-2 flex items-center justify-center text-slate-400">
+                        <i class="fa-solid fa-comments text-xl"></i>
+                    </div>
+                    左側の「対話スタート」を押して、マイクまたはキーボードでクロージングトークを開始してください
+                </div>
+            </div>
+
+            <div class="border-t border-slate-800 pt-3 space-y-2">
+                <!-- Status Row -->
+                <div class="flex items-center justify-between text-xs text-slate-400 px-1">
+                    <span class="flex items-center">
+                        <span id="micDot" class="w-2.5 h-2.5 rounded-full bg-slate-600 mr-2"></span>
+                        <span id="speechStateLabel">マイク待機中</span>
+                    </span>
+                    <span id="speechEngineStatus" class="text-[11px] text-slate-500">Web Speech API</span>
+                </div>
+
+                <!-- Realtime recognized speech preview -->
+                <div id="interimBox" class="w-full bg-slate-950/80 border border-slate-800 rounded-xl px-3.5 py-2 min-h-[40px] text-xs text-slate-400 flex items-center transition">
+                    <span id="interimText" class="truncate italic">音声認識結果またはタイピング入力がここに反映されます...</span>
+                </div>
+
+                <!-- Keyboard Fallback Form -->
+                <form id="textInputForm" onsubmit="handleManualSend(event)" class="flex gap-2">
+                    <input type="text" id="manualInput" placeholder="マイクが通らない場合は直接ここに入力して送信（Enter）" class="flex-1 bg-slate-950/90 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-blue-500 transition">
+                    <button type="submit" id="manualSendBtn" class="px-4 py-2.5 bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white text-xs font-semibold rounded-xl transition flex items-center gap-1.5 shadow-md">
+                        <i class="fa-solid fa-paper-plane"></i>
+                        <span class="hidden sm:inline">送信</span>
+                    </button>
+                </form>
+            </div>
+        </section>
+
+    </main>
+
+    <div id="configModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full shadow-2xl overflow-hidden">
+            <div class="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-950/50">
+                <h3 class="font-bold text-sm text-slate-200 flex items-center">
+                    <i class="fa-solid fa-gear text-blue-400 mr-2"></i> 環境・APIキー設定
+                </h3>
+                <button onclick="closeConfigModal()" class="text-slate-400 hover:text-slate-200 text-lg">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <div class="p-4 space-y-4 text-xs">
+                <div>
+                    <label class="block font-medium text-slate-300 mb-1">Gemini API Key (任意)</label>
+                    <input type="password" id="apiKeyInput" placeholder="AIzaSy..." class="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-slate-200 focus:outline-none focus:border-blue-500">
+                    <p class="text-[11px] text-slate-500 mt-1">※空欄の場合は、ローカルのルールベースAIエンジンが自動で応答します（キー無しでも練習可能）。</p>
+                </div>
+
+                <div class="p-3 bg-slate-950/60 rounded-xl border border-slate-800 space-y-1.5 text-slate-400">
+                    <div class="font-semibold text-slate-300 flex items-center">
+                        <i class="fa-solid fa-circle-info text-blue-400 mr-1.5"></i> 音声認識が動かない場合のチェック
+                    </div>
+                    <p>1. Chrome または Edge をご使用ください。</p>
+                    <p>2. ブラウザのURLが <code>http://localhost...</code> または <code>https://...</code> であることを確認してください。</p>
+                    <p>3. アドレスバー左の「南京錠アイコン」からマイクへのアクセスを「許可」してください。</p>
+                </div>
+            </div>
+            <div class="p-4 border-t border-slate-800 bg-slate-950/50 flex justify-end gap-2">
+                <button onclick="saveApiKey()" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-medium transition text-xs">
+                    設定を保存
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="feedbackModal" class="fixed inset-0 bg-slate-950/85 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-3xl w-full max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
+            <div class="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-950/60">
+                <div class="flex items-center space-x-2.5">
+                    <div class="p-2 bg-emerald-500/20 text-emerald-400 rounded-xl">
+                        <i class="fa-solid fa-chart-line text-lg"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-bold text-base text-slate-100">クロージング商談 AI診断レポート</h3>
+                        <p class="text-[11px] text-slate-400">実戦ハードモード基準（生命保険確定申告ナレッジ評価）</p>
+                    </div>
+                </div>
+                <button onclick="closeModal()" class="text-slate-400 hover:text-slate-200 p-2 text-lg">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            
+            <div id="modalContent" class="p-5 overflow-y-auto space-y-4 text-xs sm:text-sm text-slate-200 leading-relaxed custom-scroll">
+                <!-- Dynamically generated evaluation report -->
+            </div>
+
+            <div class="p-3.5 border-t border-slate-800 bg-slate-950/60 flex justify-end">
+                <button onclick="closeModal()" class="px-5 py-2 bg-slate-800 hover:bg-slate-700 rounded-xl text-xs font-medium text-slate-200 transition border border-slate-700">
+                    閉じる
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const personas = [
+            {
+                id: 'newbie_low_income',
+                title: '新人・低年収の営業職員様',
+                tag: '年収ネック / 白',
+                icon: 'fa-seedling',
+                color: 'border-amber-500/40 text-amber-400',
+                desc: '「入ったばかりで収入も少ないし、お金払って任せるのは勿体ない。自分で適当にやります」',
+                openingLine: 'いや〜まだ入社したばかりで収入も少ないですし！お金を出してまでお願いするのは勿体ないかな〜と。自分で適当にやってみようと思うのですが…',
+                systemInstruction: `あなたは生命保険会社の新人営業職員（年収200万円程度・白色申告）です。
+営業担当者から確定申告記帳代行（エフアンドエム/カルク）の契約提案を受けています。
+【難易度：極めて高（実戦ハードモード）】
+あなたは簡単に納得しないガードの非常に固い顧客です。
+・1回目：「収入が少ないから自分で適当にやる」「先輩も自分でできると言っていた」と強く断る。
+・2回目（安さやメリットを言われても）：「でも毎月お金かかるのは痛いし…」「解約するとき面倒くさそうだし…」と別の懸念で粘る。
+・3回目：「うーん、でも今年の確定申告が終わってから考えようかな…」と先延ばしにする。
+【スコアルール】
+・初期スコア: 10
+・単なる安さや一方的説明：-10〜-20。
+・「共感」＋「利用料の全額経費化」＋「所得調整での手当維持」＋「1年お試しの比較」が揃った時のみ：+25〜+35。
+・85以上で成約合意。
+文末に必ず以下を付与：
+[SCORE: 数値, STATUS: ステータス名]`
+            },
+            {
+                id: 'competitor_urban',
+                title: '他社（アーバン等）利用中の中堅',
+                tag: '乗り換え難色 / 青65',
+                icon: 'fa-arrow-right-arrow-left',
+                color: 'border-purple-500/40 text-purple-400',
+                desc: '「ずっと他社使ってて不満もないし、担当者に悪い。乗り換え手続きも面倒」',
+                openingLine: 'あ〜ずっとアーバンさんにお任せしていて不満もないですし、今の担当者さんにもお世話になってて変えるの申し訳ないんですよね。手続きも面倒そうですし…',
+                systemInstruction: `あなたは生保営業歴4〜5年の中堅職員（年収350〜400万円・他社利用中）です。
+他社担当者との義理があり、乗り換え手続きの手間を嫌がります。
+【難易度：極めて高（実戦ハードモード）】
+・初期スコア: 10
+・他社批判をすると激怒し-20。
+・「他社への敬意」＋「移行手続き3分で完了」＋「アプリ進捗管理の差別化」＋「長期コストの比較」が提示された場合のみ+25〜+35。
+・85以上で成約合意。
+文末に必ず以下を付与：
+[SCORE: 数値, STATUS: ステータス名]`
+            },
+            {
+                id: 'confident_veteran',
+                title: '20年自己申告のベテラン職員様',
+                tag: '過信・税調リスク / 白',
+                icon: 'fa-user-ninja',
+                color: 'border-rose-500/40 text-rose-400',
+                desc: '「20年自分でやってて調査も入ったことない。適当にやって非課税にできてるから大丈夫」',
+                openingLine: '私もう20年ずっと自分でやってるから大丈夫ですよ！税務調査なんて今まで一度も入ったことないし、適当に経費作って税金かからないようにできてるから！',
+                systemInstruction: `あなたは生保営業歴20年のベテラン職員（白色申告）です。
+自力でやってきた自負がありプライドが高いです。
+【難易度：極めて高（実戦ハードモード）】
+・初期スコア: 10
+・「自分でやるのは危険」と上から目線で言うと-25。
+・「20年の実績への敬意」＋「OCRマークシート導入と白色帳簿保存厳罰化のファクト」＋「税理士印の防御力」＋「青65での堂々たる非課税」が提示されたら+25〜+35。
+・85以上で成約合意。
+文末に必ず以下を付与：
+[SCORE: 数値, STATUS: ステータス名]`
+            },
+            {
+                id: 'allowance_tax_saving',
+                title: '手当・青色・節税に関心がある職員様',
+                tag: 'ハイトク・母子手当 / 青ニーズ',
+                icon: 'fa-piggy-bank',
+                color: 'border-emerald-500/40 text-emerald-400',
+                desc: '「ハイトクや母子手当を満額もらいたい。でも青色申告は難しそうで不安」',
+                openingLine: '税金は安くしたいし手当（ハイトクや母子手当）も減らしたくないんですけど、青色申告って難しそうだし自分じゃ無理ですよね…？',
+                systemInstruction: `あなたは手当（挙績手当・母子手当）を守りたい生保職員です。
+損をしたくないが手続きの難しさに強い抵抗感があります。
+【難易度：極めて高（実戦ハードモード）】
+・初期スコア: 10
+・「手当減額の不安への共感」＋「青65での所得調整」＋「封筒に入れて送るだけの簡便さ」が提示されたら+25〜+35。
+・85以上で成約合意。
+文末に必ず以下を付与：
+[SCORE: 数値, STATUS: ステータス名]`
+            }
+        ];
+
+        let selectedPersona = personas[0];
+        let isSessionActive = false;
+        let isMicOn = false;
+        let isAiSpeaking = false;
+        let recognition = null;
+        let conversationHistory = [];
+        let currentSatisfactionScore = 10;
+        let currentSatisfactionStatus = '鉄壁の拒絶';
+        let customApiKey = localStorage.getItem('trainer_gemini_api_key') || '';
+
+        window.addEventListener('DOMContentLoaded', () => {
+            renderPersonaOptions();
+            updatePersonaCard();
+            checkEnvironmentProtocol();
+            setupSpeechRecognition();
+        });
+
+        function checkEnvironmentProtocol() {
+            if (window.location.protocol === 'file:') {
+                document.getElementById('protocolNotice').classList.remove('hidden');
+            }
+        }
+
+        function renderPersonaOptions() {
+            const container = document.getElementById('personaContainer');
+            container.innerHTML = personas.map(p => `
+                <div onclick="selectPersona('${p.id}')" id="persona_opt_${p.id}" class="p-3 border rounded-xl cursor-pointer transition flex items-start space-x-3 ${p.id === selectedPersona.id ? 'bg-slate-800 border-blue-500 ring-1 ring-blue-500/40' : 'bg-slate-950/40 border-slate-800 hover:bg-slate-800/40'}">
+                    <div class="w-8 h-8 rounded-lg bg-slate-900 border border-slate-800 flex items-center justify-center shrink-0 mt-0.5 ${p.color}">
+                        <i class="fa-solid ${p.icon}"></i>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-bold text-slate-200 truncate">${p.title}</span>
+                            <span class="text-[9px] px-1.5 py-0.5 rounded bg-slate-900 border border-slate-800 text-slate-400 shrink-0 ml-1">${p.tag}</span>
+                        </div>
+                        <p class="text-[11px] text-slate-400 line-clamp-2 mt-1 leading-snug">${p.desc}</p>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function selectPersona(id) {
+            if (isSessionActive) {
+                showToast('対話中はペルソナを変更できません。中断してください。', 'warning');
+                return;
+            }
+            selectedPersona = personas.find(p => p.id === id);
+            renderPersonaOptions();
+            updatePersonaCard();
+        }
+
+        function updatePersonaCard() {
+            document.getElementById('activePersonaTitle').innerText = selectedPersona.title;
+            document.getElementById('activePersonaTag').innerText = selectedPersona.tag;
+            document.getElementById('activePersonaDesc').innerText = selectedPersona.desc;
+            updateSatisfactionUI(10, '鉄壁の拒絶');
+        }
+
+        function updateSatisfactionUI(score, status) {
+            currentSatisfactionScore = score;
+            currentSatisfactionStatus = status;
+
+            document.getElementById('satisfactionScoreText').innerText = score + '%';
+            document.getElementById('satisfactionBar').style.width = Math.min(Math.max(score, 5), 100) + '%';
+
+            const statusEl = document.getElementById('satisfactionStatus');
+            statusEl.innerText = status;
+
+            if (score >= 85) {
+                statusEl.className = "text-xs font-bold px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 animate-pulse";
+            } else if (score <= 15) {
+                statusEl.className = "text-xs font-bold px-3 py-1 rounded-full bg-rose-500/20 text-rose-400 border border-rose-500/40";
+            } else if (score >= 50) {
+                statusEl.className = "text-xs font-bold px-3 py-1 rounded-full bg-blue-500/20 text-blue-400 border border-blue-500/40";
+            } else {
+                statusEl.className = "text-xs font-bold px-3 py-1 rounded-full bg-slate-800 text-amber-400 border border-amber-500/40";
+            }
+        }
+
+        function setupSpeechRecognition() {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            const engineStatus = document.getElementById('speechEngineStatus');
+
+            if (!SpeechRecognition) {
+                engineStatus.innerHTML = '<span class="text-amber-400"><i class="fa-solid fa-triangle-exclamation"></i> Chrome / Edge 推奨</span>';
+                return;
+            }
+
+            try {
+                if (recognition) {
+                    try { recognition.abort(); } catch(e){}
+                }
+                recognition = new SpeechRecognition();
+                recognition.lang = 'ja-JP';
+                recognition.interimResults = true;
+                recognition.continuous = false; // continuous=false is much more stable in nested iframes
+                recognition.maxAlternatives = 1;
+
+                recognition.onstart = () => {
+                    isMicOn = true;
+                    updateMicUI();
+                    document.getElementById('speechStateLabel').innerText = "お話しください（聞き取り中）...";
+                };
+
+                recognition.onresult = (event) => {
+                    let interimTranscript = '';
+                    let finalTranscript = '';
+
+                    for (let i = event.resultIndex; i < event.results.length; ++i) {
+                        const transcript = event.results[i][0].transcript;
+                        if (event.results[i].isFinal) {
+                            finalTranscript += transcript;
+                        } else {
+                            interimTranscript += transcript;
+                        }
+                    }
+
+                    if (interimTranscript) {
+                        document.getElementById('interimText').innerText = interimTranscript;
+                        document.getElementById('interimText').className = 'text-blue-400 font-medium truncate';
+                    }
+
+                    if (finalTranscript.trim() !== '') {
+                        document.getElementById('interimText').innerText = '認識: "' + finalTranscript + '"';
+                        document.getElementById('interimText').className = 'text-emerald-400 truncate';
+                        handleUserSpeech(finalTranscript.trim());
+                    }
+                };
+
+                recognition.onerror = (event) => {
+                    console.warn('Speech Recognition Event Error:', event.error);
+                    const stateLabel = document.getElementById('speechStateLabel');
+                    
+                    if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
+                        stateLabel.innerText = "マイクが拒否されています（鍵アイコンで許可）";
+                        showToast('マイク許可が必要です。左の「マイク許可を実行」を押してください。', 'error');
+                    } else if (event.error === 'no-speech') {
+                        stateLabel.innerText = "声が検出されませんでした。もう一度お話しください";
+                    } else {
+                        stateLabel.innerText = "状態: " + event.error;
+                    }
+                    isMicOn = false;
+                    updateMicUI();
+                };
+
+                recognition.onend = () => {
+                    isMicOn = false;
+                    updateMicUI();
+                    if (isSessionActive && !isAiSpeaking) {
+                        document.getElementById('speechStateLabel').innerText = "マイク待機中（下のマイクボタンで再開）";
+                    }
+                };
+
+                engineStatus.innerHTML = '<span class="text-emerald-400 font-semibold"><i class="fa-solid fa-circle-check"></i> 音声認識準備完了</span>';
+            } catch (err) {
+                console.error("Speech Recognition setup error:", err);
+                engineStatus.innerHTML = '<span class="text-rose-400">初期化失敗</span>';
+            }
+        }
+
+        async function testMicPermission() {
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                showToast('お使いのブラウザはマイク取得APIに対応していません。', 'error');
+                return;
+            }
+
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                showToast('マイクへのアクセスが許可されました！', 'success');
+                stream.getTracks().forEach(track => track.stop());
+                // Test speech recognition immediately
+                startMic();
+            } catch (err) {
+                console.error("Mic test error:", err);
+                showToast('マイクがブロックされています。ブラウザ上部のアドレスバー左にある「南京錠（設定）」からマイクを「許可」してください。', 'error');
+            }
+        }
+
+        function toggleSession() {
+            if (!isSessionActive) {
+                startSession();
+            } else {
+                stopSession();
+            }
+        }
+
+        function startSession() {
+            isSessionActive = true;
+            conversationHistory = [];
+            document.getElementById('chatHistory').innerHTML = '';
+            updateSatisfactionUI(10, '鉄壁の拒絶');
+
+            const startBtn = document.getElementById('startBtn');
+            startBtn.className = "w-full py-3 px-4 bg-rose-600 hover:bg-rose-500 text-white font-semibold rounded-xl transition flex items-center justify-center space-x-2 shadow-lg shadow-rose-600/30";
+            startBtn.innerHTML = `<i class="fa-solid fa-stop"></i><span>練習中断</span>`;
+
+            document.getElementById('finishBtn').disabled = false;
+
+            const statusBadge = document.getElementById('statusBadge');
+            statusBadge.className = "px-3 py-1 rounded-full text-xs font-medium bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center";
+            statusBadge.innerHTML = `<i class="fa-solid fa-circle text-[8px] mr-1.5 text-emerald-400 animate-ping"></i> 商談中`;
+
+            appendChatMessage('system', `対話スタート。顧客「${selectedPersona.title}」へクロージングを行います。`);
+
+            const openingText = selectedPersona.openingLine;
+            appendChatMessage('model', openingText);
+            conversationHistory.push({ role: 'model', text: openingText });
+
+            speakText(openingText, () => {
+                if (isSessionActive) {
+                    startMic();
+                }
+            });
+        }
+
+        function stopSession() {
+            isSessionActive = false;
+            stopMic();
+            if ('speechSynthesis' in window) {
+                window.speechSynthesis.cancel();
+            }
+
+            const startBtn = document.getElementById('startBtn');
+            startBtn.className = "w-full py-3 px-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-semibold rounded-xl transition flex items-center justify-center space-x-2 shadow-lg shadow-blue-600/30";
+            startBtn.innerHTML = `<i class="fa-solid fa-play"></i><span>対話スタート</span>`;
+
+            const statusBadge = document.getElementById('statusBadge');
+            statusBadge.className = "px-3 py-1 rounded-full text-xs font-medium bg-slate-800 text-slate-400 border border-slate-700 flex items-center";
+            statusBadge.innerHTML = `<i class="fa-solid fa-circle text-[8px] mr-1.5 text-slate-500"></i> 待機中`;
+            updateMicUI();
+        }
+
+        function toggleMic() {
+            if (isMicOn) {
+                stopMic();
+            } else {
+                startMic();
+            }
+        }
+
+        function startMic() {
+            if (!recognition) {
+                setupSpeechRecognition();
+            }
+            if (!recognition) {
+                showToast('音声認識が利用できません。下の入力欄から送信してください。', 'warning');
+                return;
+            }
+
+            try {
+                recognition.start();
+            } catch(e) {
+                console.warn('Recognition start exception, retrying reset:', e);
+                try {
+                    recognition.stop();
+                    setTimeout(() => recognition.start(), 200);
+                } catch(e2){}
+            }
+        }
+
+        function stopMic() {
+            if (recognition) {
+                try { recognition.stop(); } catch(e){}
+            }
+            isMicOn = false;
+            updateMicUI();
+        }
+
+        function updateMicUI() {
+            const micBtn = document.getElementById('micBtn');
+            const micBtnText = document.getElementById('micBtnText');
+            const micDot = document.getElementById('micDot');
+            const speechStateLabel = document.getElementById('speechStateLabel');
+
+            if (isMicOn) {
+                micBtn.className = "w-full py-2.5 px-4 bg-rose-600 hover:bg-rose-500 text-white font-semibold rounded-xl transition flex items-center justify-center space-x-2 pulse-ring cursor-pointer shadow-lg shadow-rose-600/30";
+                micBtnText.innerText = "マイク ON (聞いています...)";
+                micDot.className = "w-2.5 h-2.5 rounded-full bg-rose-500 animate-ping mr-2";
+                speechStateLabel.innerText = "お話しください（聞き取り中）...";
+            } else {
+                micBtn.className = "w-full py-2.5 px-4 bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold rounded-xl transition flex items-center justify-center space-x-2 cursor-pointer border border-slate-700";
+                micBtnText.innerText = "マイクを手動でONにする";
+                micDot.className = "w-2.5 h-2.5 rounded-full bg-slate-600 mr-2";
+                if (!isSessionActive) {
+                    speechStateLabel.innerText = "マイク待機中";
+                }
+            }
+        }
+
+        function stopMic() {
+            if (recognition) {
+                try { recognition.stop(); } catch(e){}
+            }
+            isMicOn = false;
+            updateMicUI();
+        }
+
+        function updateMicUI() {
+            const micBtn = document.getElementById('micBtn');
+            const micBtnText = document.getElementById('micBtnText');
+            const micDot = document.getElementById('micDot');
+            const speechStateLabel = document.getElementById('speechStateLabel');
+
+            if (isMicOn) {
+                micBtn.className = "w-full py-2.5 px-4 bg-rose-600 hover:bg-rose-500 text-white font-semibold rounded-xl transition flex items-center justify-center space-x-2 pulse-ring cursor-pointer shadow-lg shadow-rose-600/30";
+                micBtnText.innerText = "マイク ON (録音中)";
+                micDot.className = "w-2.5 h-2.5 rounded-full bg-rose-500 animate-ping mr-2";
+                speechStateLabel.innerText = "あなたの発言を聞き取り中...";
+            } else {
+                micBtn.className = isSessionActive 
+                    ? "w-full py-2.5 px-4 bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold rounded-xl transition flex items-center justify-center space-x-2 cursor-pointer border border-slate-700"
+                    : "w-full py-2.5 px-4 bg-slate-800 text-slate-500 font-semibold rounded-xl transition flex items-center justify-center space-x-2 cursor-not-allowed border border-slate-800";
+                micBtnText.innerText = "マイク停止中";
+                micDot.className = "w-2.5 h-2.5 rounded-full bg-slate-600 mr-2";
+                speechStateLabel.innerText = "マイク待機中";
+            }
+        }
+
+        function handleManualSend(e) {
+            e.preventDefault();
+            const input = document.getElementById('manualInput');
+            const text = input.value.trim();
+            if (!text) return;
+
+            if (!isSessionActive) {
+                startSession();
+            }
+
+            input.value = '';
+            handleUserSpeech(text);
+        }
+
+        async function handleUserSpeech(text) {
+            if (!isSessionActive) return;
+
+            appendChatMessage('user', text);
+            conversationHistory.push({ role: 'user', text: text });
+
+            stopMic();
+            const loadingMsgId = appendChatMessage('ai_loading', 'AI顧客が反論を思考中...');
+
+            try {
+                let rawAiResponse;
+                if (customApiKey) {
+                    rawAiResponse = await callGeminiPersonaAPI();
+                } else {
+                    rawAiResponse = await simulatePersonaResponse(text);
+                }
+
+                document.getElementById(loadingMsgId)?.remove();
+                const parsed = parseAiResponse(rawAiResponse);
+
+                if (parsed.score !== null) {
+                    updateSatisfactionUI(parsed.score, parsed.status);
+                }
+
+                appendChatMessage('model', parsed.cleanText);
+                conversationHistory.push({ role: 'model', text: parsed.cleanText });
+
+                if (parsed.score >= 85) {
+                    appendChatMessage('system', '🎉 【成約成立】超難関ハードモードの反論を攻略し、契約合意を勝ち取りました！');
+                } else if (parsed.score <= 10 && conversationHistory.length >= 8) {
+                    appendChatMessage('system', '❌ 【商談破談】顧客の強固な警戒感を解くことができませんでした。');
+                }
+
+                speakText(parsed.cleanText, () => {
+                    if (isSessionActive) {
+                        startMic();
+                    }
+                });
+
+            } catch (err) {
+                console.error("AI Response error:", err);
+                document.getElementById(loadingMsgId)?.remove();
+                appendChatMessage('system', '応答エラーが発生しました。右上の設定からGemini APIキーを確認するか、もう一度お話しください。');
+                if (isSessionActive) startMic();
+            }
+        }
+
+        function parseAiResponse(rawText) {
+            const scoreMatch = rawText.match(/\[SCORE:\s*(\d+),\s*STATUS:\s*([^\]]+)\]/i);
+            if (scoreMatch) {
+                const score = parseInt(scoreMatch[1], 10);
+                const status = scoreMatch[2].trim();
+                const cleanText = rawText.replace(/\[SCORE:[^\]]+\]/gi, '').trim();
+                return { cleanText, score, status };
+            }
+            return { cleanText: rawText, score: null, status: '慎重に検討中' };
+        }
+
+        async function callGeminiPersonaAPI() {
+            const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${customApiKey}`;
+            const formattedContents = conversationHistory.map(item => ({
+                role: item.role === 'user' ? 'user' : 'model',
+                parts: [{ text: item.text }]
+            }));
+
+            const payload = {
+                contents: formattedContents,
+                systemInstruction: {
+                    parts: [{ text: selectedPersona.systemInstruction }]
+                }
+            };
+
+            const response = await fetch(endpoint, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            if (!response.ok) {
+                throw new Error(`API Error: ${response.status}`);
+            }
+
+            const data = await response.json();
+            return data.candidates?.[0]?.content?.parts?.[0]?.text || "すみません、少し聞き取れませんでした。もう一度お願いできますか？";
+        }
+
+        // Offline rule-based response engine when API key is empty
+        async function simulatePersonaResponse(userText) {
+            await new Promise(r => setTimeout(r, 900)); // natural pause
+
+            let scoreChange = 0;
+            let responseText = "";
+            let status = currentSatisfactionStatus;
+
+            // Knowledge keywords check
+            const hasEmpathy = /大変|お疲れ様|お気持ち|よくわかり|共感|ご苦労/.test(userText);
+            const hasCostTax = /経費|全額|落とせ|税金|節税/.test(userText);
+            const hasAllowance = /手当|ハイトク|母子|所得|扶養/.test(userText);
+            const hasTrial = /1年|比較|お試し|試して|まず/.test(userText);
+            const isPushy = /絶対に|安いですから|契約して|決めて/.test(userText);
+
+            if (selectedPersona.id === 'newbie_low_income') {
+                if (hasEmpathy && (hasCostTax || hasAllowance) && hasTrial) {
+                    scoreChange = 35;
+                    responseText = "なるほど…利用料自体も経費になるし、手当が削られないようにできるなら、確かに1年試して比較してみる価値はありそうですね。";
+                    status = "成約合意";
+                } else if (hasTrial || hasCostTax) {
+                    scoreChange = 15;
+                    responseText = "うーん、経費になると言っても毎月払うのが不安なんですよね。本当に自分でやるより得なんですか？";
+                    status = "少し傾聴";
+                } else if (isPushy) {
+                    scoreChange = -15;
+                    responseText = "いや、だから入ったばかりで本当にお金ないんですよ！無理強いしないでください。";
+                    status = "強い拒絶";
+                } else {
+                    responseText = "先輩たちも最初は自分でやってたって聞きましたし、やっぱり今年はお金をかけずに乗り切りたいです。";
+                    status = "慎重に検討中";
+                }
+            } else if (selectedPersona.id === 'competitor_urban') {
+                if (/悪く|ダメ|他社|劣る/.test(userText)) {
+                    scoreChange = -20;
+                    responseText = "今の担当者さんには本当にお世話になってるんです。そんな風に言われると気分が悪いです。";
+                    status = "不快感・拒絶";
+                } else if (hasTrial && /3分|手続き|来年|簡単/.test(userText)) {
+                    scoreChange = 35;
+                    responseText = "手続きも3分で終わって今の担当さんとも角が立たないなら…1年だけ乗り換えてアプリ試してみようかな。";
+                    status = "成約合意";
+                } else {
+                    scoreChange = 10;
+                    responseText = "でも解約の電話入れたりするのも気まずいですし、わざわざ変える必要性をまだあまり感じてないんですよね。";
+                    status = "慎重に検討中";
+                }
+            } else {
+                if (/危険|間違|違反/.test(userText)) {
+                    scoreChange = -25;
+                    responseText = "20年間何の問題もなかったのに、あなたに間違ってるとか言われたくないです！";
+                    status = "鉄壁の拒絶";
+                } else if (hasEmpathy && /税理士|調査|青色|安心/.test(userText)) {
+                    scoreChange = 30;
+                    responseText = "まあ…確かに最近の税務署はOCRとか厳しくなってるって噂も聞くし、税理士さんのハンコで守られるなら1年だけお願いしようかしら。";
+                    status = "成約合意";
+                } else {
+                    responseText = "私ずっとこれでやってきたから大丈夫よ。自分より詳しい人がいるとも思えないしね。";
+                    status = "過信・拒絶";
+                }
+            }
+
+            const newScore = Math.max(0, Math.min(100, currentSatisfactionScore + scoreChange));
+            if (newScore >= 85) status = "成約合意";
+
+            return `${responseText}\n[SCORE: ${newScore}, STATUS: ${status}]`;
+        }
+
+        function speakText(text, onEndCallback) {
+            if (!('speechSynthesis' in window)) {
+                if (onEndCallback) onEndCallback();
+                return;
+            }
+
+            window.speechSynthesis.cancel();
+            isAiSpeaking = true;
+            document.getElementById('personaAvatar').classList.add('ai-speaking');
+
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = 'ja-JP';
+
+            const rateInput = document.getElementById('speechRate');
+            utterance.rate = parseFloat(rateInput.value) || 1.3;
+            utterance.pitch = 1.05;
+
+            const voices = window.speechSynthesis.getVoices();
+            const preferredVoice = voices.find(v => 
+                (v.lang.includes('ja') || v.lang.includes('JP')) && 
+                (v.name.includes('Natural') || v.name.includes('Google') || v.name.includes('Microsoft') || v.name.includes('Otoya') || v.name.includes('Kyoko'))
+            ) || voices.find(v => v.lang.includes('ja') || v.lang.includes('JP'));
+
+            if (preferredVoice) utterance.voice = preferredVoice;
+
+            const handleFinish = () => {
+                isAiSpeaking = false;
+                document.getElementById('personaAvatar').classList.remove('ai-speaking');
+                if (onEndCallback) onEndCallback();
+            };
+
+            utterance.onend = handleFinish;
+            utterance.onerror = (e) => {
+                console.warn('Speech synthesis error:', e);
+                handleFinish();
+            };
+
+            window.speechSynthesis.speak(utterance);
+        }
+
+        function appendChatMessage(role, text) {
+            const chatHistoryEl = document.getElementById('chatHistory');
+            const msgId = 'msg_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
+            let bubbleHtml = '';
+
+            if (role === 'user') {
+                bubbleHtml = `
+                    <div id="${msgId}" class="flex justify-end space-x-2">
+                        <div class="max-w-[85%] bg-blue-600 text-white p-3 rounded-2xl rounded-tr-none text-xs shadow-md">
+                            <p class="font-bold text-[10px] text-blue-200 mb-0.5"><i class="fa-solid fa-user mr-1"></i>あなた（営業担当者）</p>
+                            <p class="leading-relaxed">${escapeHtml(text)}</p>
+                        </div>
+                    </div>
+                `;
+            } else if (role === 'model') {
+                bubbleHtml = `
+                    <div id="${msgId}" class="flex justify-start space-x-2">
+                        <div class="max-w-[85%] bg-slate-900 border border-slate-800 text-slate-100 p-3 rounded-2xl rounded-tl-none text-xs shadow-md">
+                            <p class="font-bold text-[10px] text-slate-400 mb-0.5"><i class="fa-solid fa-user-tie mr-1"></i>${selectedPersona.title}</p>
+                            <p class="leading-relaxed text-slate-200">${escapeHtml(text)}</p>
+                        </div>
+                    </div>
+                `;
+            } else if (role === 'ai_loading') {
+                bubbleHtml = `
+                    <div id="${msgId}" class="flex justify-start space-x-2">
+                        <div class="bg-slate-900/80 border border-slate-800 text-slate-400 p-2.5 rounded-2xl text-xs flex items-center space-x-2">
+                            <i class="fa-solid fa-circle-notch animate-spin text-blue-400"></i>
+                            <span>${selectedPersona.title} が反論を考えています...</span>
+                        </div>
+                    </div>
+                `;
+            } else {
+                bubbleHtml = `
+                    <div id="${msgId}" class="text-center py-1">
+                        <span class="text-[10px] bg-slate-900 text-slate-300 font-medium px-3 py-1 rounded-full border border-slate-800 shadow-sm inline-block">
+                            ${escapeHtml(text)}
+                        </span>
+                    </div>
+                `;
+            }
+
+            chatHistoryEl.insertAdjacentHTML('beforeend', bubbleHtml);
+            chatHistoryEl.scrollTop = chatHistoryEl.scrollHeight;
+            return msgId;
+        }
+
+        function escapeHtml(str) {
+            return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+        }
+
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            
+            let color = 'bg-slate-900 border-slate-700 text-slate-200';
+            let icon = 'fa-info-circle text-blue-400';
+
+            if (type === 'error') {
+                color = 'bg-rose-950 border-rose-800 text-rose-200';
+                icon = 'fa-circle-xmark text-rose-400';
+            } else if (type === 'success') {
+                color = 'bg-emerald-950 border-emerald-800 text-emerald-200';
+                icon = 'fa-circle-check text-emerald-400';
+            } else if (type === 'warning') {
+                color = 'bg-amber-950 border-amber-800 text-amber-200';
+                icon = 'fa-triangle-exclamation text-amber-400';
+            }
+
+            toast.className = `p-3 rounded-xl border shadow-xl text-xs flex items-center space-x-2 transition-all transform duration-300 pointer-events-auto ${color}`;
+            toast.innerHTML = `<i class="fa-solid ${icon} text-sm"></i><span>${escapeHtml(message)}</span>`;
+
+            container.appendChild(toast);
+            setTimeout(() => {
+                toast.classList.add('opacity-0', 'translate-x-4');
+                setTimeout(() => toast.remove(), 300);
+            }, 3500);
+        }
+
+        function openConfigModal() {
+            document.getElementById('apiKeyInput').value = customApiKey;
+            document.getElementById('configModal').classList.remove('hidden');
+        }
+
+        function closeConfigModal() {
+            document.getElementById('configModal').classList.add('hidden');
+        }
+
+        function saveApiKey() {
+            const key = document.getElementById('apiKeyInput').value.trim();
+            customApiKey = key;
+            localStorage.setItem('trainer_gemini_api_key', key);
+            closeConfigModal();
+            showToast(key ? 'Gemini APIキーを保存しました。' : 'APIキーをクリアしました（ローカル判定モード）。', 'success');
+        }
+
+        async function finishSession() {
+            if (conversationHistory.length < 2) {
+                showToast('対話データが少なすぎます。最低1回はやり取りを行ってください。', 'warning');
+                return;
+            }
+
+            stopSession();
+            const modal = document.getElementById('feedbackModal');
+            const modalContent = document.getElementById('modalContent');
+            modal.classList.remove('hidden');
+
+            modalContent.innerHTML = `
+                <div class="flex flex-col items-center justify-center py-16 text-slate-400 space-y-3">
+                    <i class="fa-solid fa-brain animate-bounce text-blue-400 text-4xl"></i>
+                    <p class="text-sm font-semibold text-slate-200">生保確定申告ナレッジに基づき商談ログを厳格分析中...</p>
+                    <p class="text-xs text-slate-500">（共感度・費用対効果・所得調整・テストクロージングの達成度を採点）</p>
+                </div>
+            `;
+
+            if (!customApiKey) {
+                // Generate detailed simulated report
+                setTimeout(() => {
+                    const isSuccess = currentSatisfactionScore >= 85;
+                    modalContent.innerHTML = `
+                        <div class="space-y-4">
+                            <div class="p-4 rounded-xl ${isSuccess ? 'bg-emerald-950/40 border border-emerald-800/60 text-emerald-300' : 'bg-rose-950/40 border border-rose-800/60 text-rose-300'}">
+                                <div class="text-xs uppercase font-bold tracking-wider mb-1">商談判定結果</div>
+                                <div class="text-lg font-bold flex items-center gap-2">
+                                    <i class="fa-solid ${isSuccess ? 'fa-circle-check text-emerald-400' : 'fa-circle-xmark text-rose-400'}"></i>
+                                    <span>${isSuccess ? '🎉 成約成立（難関ハードモード攻略達成）' : '❌ 商談失注（顧客の防衛線を突破できず）'}</span>
+                                </div>
+                                <div class="text-xs mt-2 text-slate-300">納得度スコア: <strong class="text-white">${currentSatisfactionScore}%</strong> (${currentSatisfactionStatus})</div>
+                            </div>
+
+                            <div class="bg-slate-950/60 p-4 rounded-xl border border-slate-800 space-y-2">
+                                <h4 class="font-bold text-slate-200 flex items-center text-xs text-blue-400">
+                                    <i class="fa-solid fa-thumbs-up mr-1.5"></i> 評価されたポイント
+                                </h4>
+                                <ul class="list-disc list-inside text-xs text-slate-300 space-y-1">
+                                    <li>顧客の拒絶に対して一方的に売り込まず、対話を継続した姿勢。</li>
+                                    <li>相手の懸念（費用や手間）に対する切り返しトークの試み。</li>
+                                </ul>
+                            </div>
+
+                            <div class="bg-slate-950/60 p-4 rounded-xl border border-slate-800 space-y-2">
+                                <h4 class="font-bold text-slate-200 flex items-center text-xs text-amber-400">
+                                    <i class="fa-solid fa-lightbulb mr-1.5"></i> 次回に向けた実践的アドバイス（ナレッジ）
+                                </h4>
+                                <ul class="list-disc list-inside text-xs text-slate-300 space-y-1">
+                                    <li><strong>徹底した共感：</strong>「入社したばかりだと毎月の固定費は本当に不安ですよね」と一度100%肯定する。</li>
+                                    <li><strong>所得調整の威力：</strong>「青色65万円控除を適用することで、ハイトク手当や母子手当を満額守れる」具体的な手取り差を提示する。</li>
+                                    <li><strong>心理的ハードルを下げる：</strong>「まずは1年だけお試しで比較してみて、合わなければ元に戻せます」と出口を提示する。</li>
+                                </ul>
+                            </div>
+                        </div>
+                    `;
+                }, 1000);
+                return;
+            }
+
+            // Real Gemini Report Generation
+            try {
+                const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${customApiKey}`;
+                const reportPrompt = `
+あなたは生命保険営業職員様向け確定申告記帳代行サービスの熟練営業マネージャーです。
+以下の営業担当者（User）と顧客ペルソナ「${selectedPersona.title}」（Model）とのクロージング対話ログを分析し、診断レポートを出力してください。
+
+【会話ログ】
+${conversationHistory.map(h => `${h.role === 'user' ? '営業担当者' : '顧客'}: ${h.text}`).join('\n')}
+
+【最終納得度スコア】: ${currentSatisfactionScore}% (${currentSatisfactionStatus})
+
+【出力フォーマット要求】
+HTMLタグ（div, h3, h4, p, ul, li, span 等）とTailwind CSSクラスを用いて構造化して回答してください。マークダウンの三重大かっこ（\`\`\`html）は含めないでください。
+`;
+                const payload = { contents: [{ parts: [{ text: reportPrompt }] }] };
+                const response = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const data = await response.json();
+                const reportHtml = data.candidates?.[0]?.content?.parts?.[0]?.text || "<p>評価の生成に失敗しました。</p>";
+                modalContent.innerHTML = reportHtml.replace(/```html/g, '').replace(/```/g, '');
+            } catch (err) {
+                console.error('Report error:', err);
+                modalContent.innerHTML = `<div class="p-4 bg-rose-950/40 border border-rose-800 text-rose-300 text-xs rounded-xl">レポート生成中に通信エラーが発生しました。</div>`;
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('feedbackModal').classList.add('hidden');
+        }
+    </script>
+</body>
+</html>
