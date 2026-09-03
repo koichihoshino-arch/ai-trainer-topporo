@@ -355,6 +355,8 @@
         let currentSatisfactionScore = 10;
         let currentSatisfactionStatus = '鉄壁の拒絶';
         let customApiKey = localStorage.getItem('trainer_gemini_api_key') || '';
+        let lastAiUtterance = ''; // AIの直前発言記録（エコー除去用）
+        let micCooldownTimer = null;
 
         window.addEventListener('DOMContentLoaded', () => {
             renderPersonaOptions();
@@ -451,6 +453,11 @@
                 };
 
                 recognition.onresult = (event) => {
+                    // AIが発声中、またはクールダウン中なら音声を完全に無視
+                    if (isAiSpeaking) {
+                        return;
+                    }
+
                     let interimTranscript = '';
                     let finalTranscript = '';
 
@@ -469,9 +476,19 @@
                     }
 
                     if (finalTranscript.trim() !== '') {
-                        document.getElementById('interimText').innerText = '認識: "' + finalTranscript + '"';
+                        const cleanSpeech = finalTranscript.trim();
+                        
+                        // エコー防止：直前のAI発言と80%以上似ている場合はスピーカー拾いと判定して破棄
+                        if (isEchoOfAi(cleanSpeech, lastAiUtterance)) {
+                            console.warn("AIの自己エコー（反響音）を検知して自動破棄:", cleanSpeech);
+                            document.getElementById('interimText').innerText = '※スピーカーの音声を検知したため除外しました';
+                            document.getElementById('interimText').className = 'text-amber-400 truncate text-xs';
+                            return;
+                        }
+
+                        document.getElementById('interimText').innerText = '認識: "' + cleanSpeech + '"';
                         document.getElementById('interimText').className = 'text-emerald-400 truncate';
-                        handleUserSpeech(finalTranscript.trim());
+                        handleUserSpeech(cleanSpeech);
                     }
                 };
 
@@ -837,9 +854,15 @@
                 return;
             }
 
+            // AI発話前にマイクを即座に完全停止（スピーカー音の拾い込みを絶対防止）
+            stopMic();
             window.speechSynthesis.cancel();
+            if (micCooldownTimer) clearTimeout(micCooldownTimer);
+
             isAiSpeaking = true;
+            lastAiUtterance = text; // エコー除去用に記録
             document.getElementById('personaAvatar').classList.add('ai-speaking');
+            document.getElementById('speechStateLabel').innerText = "AI顧客が発話中（マイク停止）...";
 
             const utterance = new SpeechSynthesisUtterance(text);
             utterance.lang = 'ja-JP';
@@ -859,7 +882,15 @@
             const handleFinish = () => {
                 isAiSpeaking = false;
                 document.getElementById('personaAvatar').classList.remove('ai-speaking');
-                if (onEndCallback) onEndCallback();
+                
+                // スピーカーの反響・余韻が収まるまで0.8秒待機してからマイクをONにする（超重要）
+                document.getElementById('speechStateLabel').innerText = "発言準備中...";
+                micCooldownTimer = setTimeout(() => {
+                    if (isSessionActive && !isAiSpeaking) {
+                        startMic();
+                    }
+                    if (onEndCallback) onEndCallback();
+                }, 800);
             };
 
             utterance.onend = handleFinish;
@@ -869,6 +900,17 @@
             };
 
             window.speechSynthesis.speak(utterance);
+        }
+
+        // AIの音声拾い（エコー）を判定するフィルター関数
+        function isEchoOfAi(userText, aiText) {
+            if (!aiText || !userText) return false;
+            const normalize = s => s.replace(/[\s\u3000、。！？!?,.]/g, '');
+            const u = normalize(userText);
+            const a = normalize(aiText);
+            if (u.length >= 6 && a.includes(u)) return true;
+            if (a.length >= 6 && u.includes(a)) return true;
+            return false;
         }
 
         function appendChatMessage(role, text) {
